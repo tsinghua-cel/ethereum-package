@@ -21,7 +21,7 @@ DEFAULT_CL_IMAGES = {
     "teku": "consensys/teku:latest",
     "nimbus": "statusim/nimbus-eth2:multiarch-latest",
     "prysm": "prysmaticlabs/prysm-beacon-chain:stable",
-    //"prysm": "gcr.io/prysmaticlabs/prysm/beacon-chain:stable",
+    #"prysm": "gcr.io/prysmaticlabs/prysm/beacon-chain:stable",
     "lodestar": "chainsafe/lodestar:latest",
     "grandine": "sifrai/grandine:stable",
 }
