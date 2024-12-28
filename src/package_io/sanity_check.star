@@ -254,6 +254,10 @@ SUBCATEGORY_PARAMS = {
         "max_wallets",
         "spamoor_extra_args",
     ],
+    "bunnyfinder_params": [
+        "image",
+        "strategy",
+    ],
     "port_publisher": [
         "nat_exit_ip",
         "el",

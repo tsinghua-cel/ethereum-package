@@ -62,6 +62,7 @@ get_prefunded_accounts = import_module(
     "./src/prefunded_accounts/get_prefunded_accounts.star"
 )
 spamoor = import_module("./src/spamoor/spamoor.star")
+bunnyfinder = import_module("./src/bunnyfinder/bunnyfinder_launcher.star")
 
 GRAFANA_USER = "admin"
 GRAFANA_PASSWORD = "admin"
@@ -696,6 +697,20 @@ def run(plan, args={}):
                 args_with_right_defaults.spamoor_params,
                 global_node_selectors,
             )
+        elif additional_service == "bunnyfinder":
+            plan.print("Launching bunnyfinder")
+            bunnyfinder_config_template = read_file(
+                static_files.BUNNYFINDER_CONFIG_TEMPLATE_FILEPATH
+            )
+            bunnyfinder_params = args_with_right_defaults.bunnyfinder_params
+            bunnyfinder.launch_bunnyfinder(
+                plan,
+                bunnyfinder_config_template,
+                network_params,
+                bunnyfinder_params,
+                global_node_selectors,
+            )
+            plan.print("Successfully launched assertoor")
         else:
             fail("Invalid additional service %s" % (additional_service))
     if launch_prometheus_grafana:

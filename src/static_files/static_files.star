@@ -104,3 +104,9 @@ FLASHBOTS_RBUILDER_CONFIG_FILEPATH = (
 COMMIT_BOOST_CONFIG_FILEPATH = (
     STATIC_FILES_DIRPATH + "/mev/commit-boost/cb-config.toml.tmpl"
 )
+
+# bunnyfinder config
+BUNNYFINDER_CONFIG_DIRPATH = "/bunnyfinder-config"
+BUNNYFINDER_CONFIG_TEMPLATE_FILEPATH = (
+    STATIC_FILES_DIRPATH + BUNNYFINDER_CONFIG_DIRPATH + "/config.yaml.tmpl"
+)
