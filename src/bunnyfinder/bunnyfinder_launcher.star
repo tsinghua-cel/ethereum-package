@@ -35,7 +35,7 @@ def launch_bunnyfinder(
     global_node_selectors,
 ):
     # check bunnyfinder_params.dbconnect is set an valid value
-    if bunnyfinder_params.dbconnect is None or bunnyfinder_params.dbconnect == "":
+    if bunnyfinder_params.dbconnect == "":
         fail(
             "dbconnect is required in bunnyfinder_params"
         )
