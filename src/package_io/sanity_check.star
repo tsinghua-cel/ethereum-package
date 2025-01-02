@@ -257,6 +257,10 @@ SUBCATEGORY_PARAMS = {
     "bunnyfinder_params": [
         "image",
         "strategy",
+        "dbconnect",
+        "duration_per_strategy",
+        "max_malicious_idx",
+        "min_malicious_idx",
     ],
     "port_publisher": [
         "nat_exit_ip",

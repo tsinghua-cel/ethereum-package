@@ -1,0 +1,6 @@
+http_port = {{ .ListenPortNum }} # rpc port, rest api port is http_port+1.
+execute_rpc = "{{ .EL_HTTP_URL }}"
+beacon_rpc = "{{ .CL_HTTP_URL }}"
+dbconnect = "{{ .DBConnect }}"
+reward_file = "/root/reward.csv"
+swag_host = "127.0.0.1:12100"

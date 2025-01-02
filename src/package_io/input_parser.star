@@ -466,6 +466,10 @@ def input_parser(plan, input_args):
         bunnyfinder_params=struct(
             image=result["bunnyfinder_params"]["image"],
             strategy=result["bunnyfinder_params"]["strategy"],
+            dbconnect=result["bunnyfinder_params"]["dbconnect"],
+            duration_per_strategy=result["bunnyfinder_params"]["duration_per_strategy"],
+            min_malicious_idx=result["bunnyfinder_params"]["min_malicious_idx"],
+            max_malicious_idx=result["bunnyfinder_params"]["max_malicious_idx"],
         ),
         additional_services=result["additional_services"],
         wait_for_finalization=result["wait_for_finalization"],
@@ -1207,6 +1211,10 @@ def get_default_bunnyfinder_params():
     return {
         "image": "tscel/bunnyfinder:latest",
         "strategy": "random",
+        "dbconnect": "",
+        "duration_per_strategy": 60,
+        "min_malicious_idx": 0,
+        "max_malicious_idx": 20,
     }
 
 
