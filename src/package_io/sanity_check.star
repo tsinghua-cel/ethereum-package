@@ -292,6 +292,7 @@ ADDITIONAL_SERVICES_PARAMS = [
     "apache",
     "tracoor",
     "spamoor",
+    "bunnyfinder"
 ]
 
 ADDITIONAL_CATEGORY_PARAMS = {
