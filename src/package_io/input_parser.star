@@ -1212,9 +1212,9 @@ def get_default_bunnyfinder_params():
         "image": "tscel/bunnyfinder:latest",
         "strategy": "random",
         "dbconnect": "",
-        "duration_per_strategy": 60,
-        "min_malicious_idx": 0,
-        "max_malicious_idx": 20,
+        "duration_per_strategy": "60",
+        "min_malicious_idx": "0",
+        "max_malicious_idx": "31",
     }
 
 
