@@ -106,7 +106,7 @@ def get_config(
              "--strategy", bunnyfinder_params.strategy,
              "--duration-per-strategy-run", bunnyfinder_params.duration_per_strategy,
              "--max-hack-idx", bunnyfinder_params.max_malicious_idx,
-             "--min-hack-idx", bunnyfinder_params.min_malicious_idx,],
+             "--min-hack-idx", bunnyfinder_params.min_malicious_idx],
         min_cpu=MIN_CPU,
         max_cpu=MAX_CPU,
         min_memory=MIN_MEMORY,
