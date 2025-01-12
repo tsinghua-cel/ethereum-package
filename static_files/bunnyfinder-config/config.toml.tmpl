@@ -1,3 +1,4 @@
+rpc_port = {{ .ListenRPCPortNum }} # rpc port, rest api port is http_port+1.
 http_port = {{ .ListenPortNum }} # rpc port, rest api port is http_port+1.
 execute_rpc = "{{ .EL_HTTP_URL }}"
 beacon_rpc = "{{ .CL_HTTP_URL }}"

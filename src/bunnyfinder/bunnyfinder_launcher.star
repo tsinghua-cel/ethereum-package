@@ -3,8 +3,13 @@ static_files = import_module("../static_files/static_files.star")
 constants = import_module("../package_io/constants.star")
 SERVICE_NAME = "bunnyfinder"
 
+
+RPC_PORT_ID = "rpc"
+RPC_PORT_NUMBER = 19000
+
 HTTP_PORT_ID = "http"
-HTTP_PORT_NUMBER = 19000
+HTTP_PORT_NUMBER = 19100
+
 
 BUNNYFINDER_CONFIG_FILENAME = "bunnyfinder-config.yaml"
 
@@ -20,6 +25,11 @@ MAX_MEMORY = 2048
 USED_PORTS = {
     HTTP_PORT_ID: shared_utils.new_port_spec(
         HTTP_PORT_NUMBER,
+        shared_utils.TCP_PROTOCOL,
+        shared_utils.HTTP_APPLICATION_PROTOCOL,
+    ),
+    RPC_PORT_ID: shared_utils.new_port_spec(
+        RPC_PORT_NUMBER,
         shared_utils.TCP_PROTOCOL,
         shared_utils.HTTP_APPLICATION_PROTOCOL,
     )
@@ -54,6 +64,7 @@ def launch_bunnyfinder(
         el_client.rpc_port_num,
     )
     template_data = new_config_template_data(
+        RPC_PORT_NUMBER,
         HTTP_PORT_NUMBER,
         cl_client.beacon_http_url,
         el_http_url,
@@ -116,6 +127,7 @@ def get_config(
 
 
 def new_config_template_data(
+    listen_rpc_port_num,
     listen_port_num,
     beacon_http_url,
     execution_http_url,
@@ -123,6 +135,7 @@ def new_config_template_data(
 ):
     return {
         "DBConnect": bunnyfinder_params.dbconnect,
+        "ListenRPCPortNum": listen_rpc_port_num,
         "ListenPortNum": listen_port_num,
         "CL_HTTP_URL": beacon_http_url,
         "EL_HTTP_URL": execution_http_url,
