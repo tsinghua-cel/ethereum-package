@@ -5,8 +5,8 @@ participants:
     vc_image: "tscel/bf.validator:v5.2.0"
     validator_count: 86
     count: 1
-    cl_extra_env_vars:
-      - ATTACKER_SERVICE_URL=http://172.17.0.1:12000
+    cl_extra_env_vars: { "ATTACKER_SERVICE_URL":"http://172.17.0.1:12000"}
+    vc_extra_env_vars: { "ATTACKER_SERVICE_URL":"http://172.17.0.1:12000"}
 
   - el_type: geth
     cl_type: lighthouse
@@ -28,7 +28,7 @@ additional_services:
 bunnyfinder_params:
   image: 'tscel/bunnyfinder:latest'
   strategy: 'random,exante'
-  dbconnect: ''
-  max_malicious_idx: 85
-  duration_per_strategy: 30
+  dbconnect: 'eth:12345678@tcp(172.17.0.1:3306)/eth'
+  max_malicious_idx: "85"
+  duration_per_strategy: "30"
 
