@@ -49,6 +49,13 @@ def launch_bunnyfinder(
         fail(
             "dbconnect is required in bunnyfinder_params"
         )
+    honest_cl_http_url = ""
+    if len(participant_contexts) >= 2:
+        participant = participant_contexts[1]
+        _, cl_client, _, _ = shared_utils.get_client_names(
+            participant, 0, participant_contexts, participant_configs
+        )
+	honest_cl_http_url = cl_client.beacon_http_url
 
     participant = participant_contexts[0]
     (
@@ -63,10 +70,21 @@ def launch_bunnyfinder(
         el_client.ip_addr,
         el_client.rpc_port_num,
     )
+
+    if honest_cl_http_url == "":
+        honest_cl_http_url = cl_client.beacon_http_url
+
+    plan.print(
+        "Launching bunnyfinder with CL HTTP URL: {0}, Honest CL HTTP URL: {1}, EL HTTP URL: {2}".format(
+            cl_client.beacon_http_url, honest_cl_http_url, el_http_url
+        )
+    )
+
     template_data = new_config_template_data(
         RPC_PORT_NUMBER,
         HTTP_PORT_NUMBER,
         cl_client.beacon_http_url,
+        honest_cl_http_url,
         el_http_url,
         bunnyfinder_params,
     )
@@ -130,6 +148,7 @@ def new_config_template_data(
     listen_rpc_port_num,
     listen_port_num,
     beacon_http_url,
+    honest_beacon_http_url,
     execution_http_url,
     bunnyfinder_params,
 ):
@@ -138,5 +157,7 @@ def new_config_template_data(
         "ListenRPCPortNum": listen_rpc_port_num,
         "ListenPortNum": listen_port_num,
         "CL_HTTP_URL": beacon_http_url,
+        "HONEST_CL_HTTP_URL": honest_beacon_http_url,
         "EL_HTTP_URL": execution_http_url,
     }
+
