@@ -131,6 +131,7 @@ def get_config(
         files={
             BUNNYFINDER_CONFIG_MOUNT_DIRPATH_ON_SERVICE: config_files_artifact_name,
         },
+        env_vars={"OPENAI_API_KEY": bunnyfinder_params.openai_key, "OPENAI_BASE_URL": bunnyfinder_params.openai_base_url, "LLM_MODEL": bunnyfinder_params.llm_model},
         cmd=["--config", config_file_path,
              "--strategy", bunnyfinder_params.strategy,
              "--duration-per-strategy-run", bunnyfinder_params.duration_per_strategy,

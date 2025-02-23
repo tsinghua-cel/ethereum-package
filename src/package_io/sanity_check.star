@@ -261,6 +261,9 @@ SUBCATEGORY_PARAMS = {
         "duration_per_strategy",
         "max_malicious_idx",
         "min_malicious_idx",
+        "openai_key",
+        "openai_base_url",
+        "llm_model",
     ],
     "port_publisher": [
         "nat_exit_ip",

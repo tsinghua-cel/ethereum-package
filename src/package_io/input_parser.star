@@ -470,6 +470,9 @@ def input_parser(plan, input_args):
             duration_per_strategy=result["bunnyfinder_params"]["duration_per_strategy"],
             min_malicious_idx=result["bunnyfinder_params"]["min_malicious_idx"],
             max_malicious_idx=result["bunnyfinder_params"]["max_malicious_idx"],
+            openai_key=result["bunnyfinder_params"]["openai_key"],
+            openai_base_url=result["bunnyfinder_params"]["openai_base_url"],
+            llm_model=result["bunnyfinder_params"]["llm_model"],
         ),
         additional_services=result["additional_services"],
         wait_for_finalization=result["wait_for_finalization"],
@@ -1215,6 +1218,9 @@ def get_default_bunnyfinder_params():
         "duration_per_strategy": "60",
         "min_malicious_idx": "0",
         "max_malicious_idx": "31",
+        "openai_key": "",
+        "openai_base_url": "",
+        "llm_model": "",
     }
 
 
