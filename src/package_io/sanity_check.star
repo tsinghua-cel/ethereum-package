@@ -264,6 +264,7 @@ SUBCATEGORY_PARAMS = {
         "openai_key",
         "openai_base_url",
         "llm_model",
+        "replay_project"
     ],
     "port_publisher": [
         "nat_exit_ip",

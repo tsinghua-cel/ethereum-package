@@ -473,6 +473,7 @@ def input_parser(plan, input_args):
             openai_key=result["bunnyfinder_params"]["openai_key"],
             openai_base_url=result["bunnyfinder_params"]["openai_base_url"],
             llm_model=result["bunnyfinder_params"]["llm_model"],
+            replay_project=result["bunnyfinder_params"]["replay_project"],
         ),
         additional_services=result["additional_services"],
         wait_for_finalization=result["wait_for_finalization"],
@@ -1221,6 +1222,7 @@ def get_default_bunnyfinder_params():
         "openai_key": "",
         "openai_base_url": "",
         "llm_model": "",
+        "replay_project":"",
     }
 
 

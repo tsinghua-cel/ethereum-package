@@ -125,6 +125,16 @@ def get_config(
 
     IMAGE_NAME = bunnyfinder_params.image
 
+    cmd=["--config", config_file_path,
+         "--strategy", bunnyfinder_params.strategy,
+         "--duration-per-strategy-run", bunnyfinder_params.duration_per_strategy,
+         "--max-hack-idx", bunnyfinder_params.max_malicious_idx,
+         "--min-hack-idx", bunnyfinder_params.min_malicious_idx]
+    # check bunnyfinder_params.replay_project is set an value, if so, add it to the cmd
+    if bunnyfinder_params.replay_project != "":
+        cmd.append("--replay")
+        cmd.append(bunnyfinder_params.replay_project)
+
     return ServiceConfig(
         image=IMAGE_NAME,
         ports=USED_PORTS,
@@ -132,11 +142,7 @@ def get_config(
             BUNNYFINDER_CONFIG_MOUNT_DIRPATH_ON_SERVICE: config_files_artifact_name,
         },
         env_vars={"OPENAI_API_KEY": bunnyfinder_params.openai_key, "OPENAI_BASE_URL": bunnyfinder_params.openai_base_url, "LLM_MODEL": bunnyfinder_params.llm_model},
-        cmd=["--config", config_file_path,
-             "--strategy", bunnyfinder_params.strategy,
-             "--duration-per-strategy-run", bunnyfinder_params.duration_per_strategy,
-             "--max-hack-idx", bunnyfinder_params.max_malicious_idx,
-             "--min-hack-idx", bunnyfinder_params.min_malicious_idx],
+        cmd = cmd,
         min_cpu=MIN_CPU,
         max_cpu=MAX_CPU,
         min_memory=MIN_MEMORY,
