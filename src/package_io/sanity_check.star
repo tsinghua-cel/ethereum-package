@@ -159,6 +159,8 @@ SUBCATEGORY_PARAMS = {
         "deneb_fork_epoch",
         "electra_fork_epoch",
         "fulu_fork_epoch",
+        "eip7732_fork_epoch",
+        "eip7805_fork_epoch",
         "network_sync_base_url",
         "data_column_sidecar_subnet_count",
         "samples_per_slot",
@@ -171,7 +173,7 @@ SUBCATEGORY_PARAMS = {
         "additional_preloaded_contracts",
         "devnet_repo",
         "prefunded_accounts",
-        "gossip_max_size",
+        "max_payload_size",
     ],
     "blockscout_params": [
         "image",
@@ -189,12 +191,9 @@ SUBCATEGORY_PARAMS = {
         "github_prefix",
         "google_prefix",
     ],
-    "tx_spammer_params": [
+    "tx_fuzz_params": [
         "image",
-        "tx_spammer_extra_args",
-    ],
-    "goomy_blob_params": [
-        "goomy_blob_args",
+        "tx_fuzz_extra_args",
     ],
     "prometheus_params": [
         "min_cpu",
@@ -238,6 +237,7 @@ SUBCATEGORY_PARAMS = {
         "mev_flood_extra_args",
         "mev_flood_seconds_per_bundle",
         "custom_flood_params",
+        "mock_mev_image",
     ],
     "xatu_sentry_params": [
         "xatu_sentry_image",
@@ -248,11 +248,23 @@ SUBCATEGORY_PARAMS = {
     ],
     "spamoor_params": [
         "image",
-        "tx_type",
+        "scenario",
         "throughput",
         "max_pending",
         "max_wallets",
         "spamoor_extra_args",
+    ],
+    "spamoor_blob_params": [
+        "image",
+        "scenario",
+        "throughput",
+        "max_blobs",
+        "max_pending",
+        "max_wallets",
+        "spamoor_extra_args",
+    ],
+    "ethereum_genesis_generator_params": [
+        "image",
     ],
     "bunnyfinder_params": [
         "image",
@@ -279,13 +291,10 @@ SUBCATEGORY_PARAMS = {
 ADDITIONAL_SERVICES_PARAMS = [
     "assertoor",
     "broadcaster",
-    "tx_spammer",
-    "blob_spammer",
+    "tx_fuzz",
     "custom_flood",
-    "goomy_blob",
-    "el_forkmon",
+    "forkmon",
     "blockscout",
-    "beacon_metrics_gazer",
     "dora",
     "full_beaconchain_explorer",
     "prometheus_grafana",
@@ -296,7 +305,8 @@ ADDITIONAL_SERVICES_PARAMS = [
     "apache",
     "tracoor",
     "spamoor",
-    "bunnyfinder"
+    "spamoor_blob",
+    "bunnyfinder",
 ]
 
 ADDITIONAL_CATEGORY_PARAMS = {

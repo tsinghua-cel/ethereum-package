@@ -415,8 +415,10 @@ participants:
     # Default to 1
     count: 1
 
+    # Snooper local flag for a participant.
     # Snooper can be enabled with the `snooper_enabled` flag per client or globally
-    # Defaults null and then set to global snooper default (false)
+    # Snooper dumps all JSON-RPC requests and responses including BeaconAPI, EngineAPI and ExecutionAPI.
+    # Default to null
     snooper_enabled: null
 
     # Enables Ethereum Metrics Exporter for this participant. Can be set globally.
@@ -625,7 +627,7 @@ network_params:
   # Maximum size of gossip messages in bytes
   # 10 * 2**20 (= 10485760, 10 MiB)
   # Defaults to 10485760 (10MB)
-  gossip_max_size: 10485760
+  max_payload_size: 10485760
 
 
 
@@ -641,13 +643,12 @@ network_params:
 additional_services:
   - assertoor
   - broadcaster
-  - tx_spammer
-  - blob_spammer
+  - tx_fuzz
   - custom_flood
-  - goomy_blob
-  - el_forkmon
+  - spamoor
+  - spamoor_blob
+  - forkmon
   - blockscout
-  - beacon_metrics_gazer
   - dora
   - full_beaconchain_explorer
   - prometheus_grafana
@@ -679,20 +680,12 @@ dora_params:
   env: {}
 
 # Configuration place for transaction spammer - https://github.com/MariusVanDerWijden/tx-fuzz
-tx_spammer_params:
+tx_fuzz_params:
   # TX Spammer docker image to use
   # Defaults to the latest master image
   image: "ethpandaops/tx-fuzz:master"
   # A list of optional extra params that will be passed to the TX Spammer container for modifying its behaviour
-  tx_spammer_extra_args: []
-
-# Configuration place for goomy the blob spammer - https://github.com/ethpandaops/goomy-blob
-goomy_blob_params:
-  # Goomy Blob docker image to use
-  # Defaults to the latest
-  image: "ethpandaops/goomy-blob:latest"
-  # A list of optional params that will be passed to the blob-spammer comamnd for modifying its behaviour
-  goomy_blob_args: []
+  tx_fuzz_extra_args: []
 
 # Configuration place for prometheus
 prometheus_params:
@@ -796,7 +789,9 @@ wait_for_finalization: false
 # This value will be overridden by participant-specific values
 global_log_level: "info"
 
-# EngineAPI Snooper global flags for all participants
+# Snooper global flag for all participants
+# Snooper can be enabled with the `snooper_enabled` flag per client or globally
+# Snooper dumps all JSON-RPC requests and responses including BeaconAPI, EngineAPI and ExecutionAPI.
 # Default to false
 snooper_enabled: false
 
@@ -812,7 +807,7 @@ parallel_keystore_generation: false
 # Default to false
 disable_peer_scoring: false
 
-# Whether the environment should be persistent; this is WIP and is slowly being rolled out accross services
+# Whether the environment should be persistent; this is WIP and is slowly being rolled out across services
 # Note this requires Kurtosis greater than 0.85.49 to work
 # Note Erigon, Besu, Teku persistence is not currently supported with docker.
 # Defaults to false
@@ -823,7 +818,7 @@ persistent: false
 # Defaults to empty cache url
 # Images pulled from dockerhub will be prefixed with "/dh/" by default (docker.io)
 # Images pulled from github registry will be prefixed with "/gh/" by default (ghcr.io)
-# Images pulled from google registory will be prefixed with "/gcr/" by default (gcr.io)
+# Images pulled from google registry will be prefixed with "/gcr/" by default (gcr.io)
 # If you want to use a local image in combination with the cache, do not put "/" in your local image name
 docker_cache_params:
   enabled: false
@@ -844,13 +839,13 @@ mev_type: null
 # Parameters if MEV is used
 mev_params:
   # The image to use for MEV boost relay
-  mev_relay_image: flashbots/mev-boost-relay
+  mev_relay_image: ethpandaops/mev-boost-relay:main
   # The image to use for the builder
   mev_builder_image: ethpandaops/flashbots-builder:main
   # The image to use for the CL builder
   mev_builder_cl_image: sigp/lighthouse:latest
   # The image to use for mev-boost
-  mev_boost_image: flashbots/mev-boost
+  mev_boost_image: ethpandaops/mev-boost:develop
   # Parameters for MEV Boost. This overrides all arguments of the mev-boost container
   mev_boost_args: []
   # Extra parameters to send to the API
@@ -936,14 +931,15 @@ checkpoint_sync_enabled: false
 # Global flag to set checkpoint sync url
 checkpoint_sync_url: ""
 
-# Spamoor params
+# Configuration place for spamoor as transaction spammer
 spamoor_params:
   # The image to use for spamoor
   image: ethpandaops/spamoor:latest
-  # The type of transactions to send
-  # Valid values are eoatx, erctx, deploytx, depoy-destruct, blobs, gasburnertx
+  # The spamoor scenario to use (see https://github.com/ethpandaops/spamoor)
+  # Valid scenarios are:
+  #  eoatx, erctx, deploytx, deploy-destruct, blobs, gasburnertx
   # Defaults to eoatx
-  tx_type: eoatx
+  scenario: eoatx
   # Throughput of spamoor
   # Defaults to 1000
   throughput: 1000
@@ -957,9 +953,42 @@ spamoor_params:
   # Defaults to empty
   spamoor_extra_args: []
 
+# Configuration place for spammor as blob spammer
+spamoor_blob_params:
+  # spamoor docker image to use
+  # Defaults to the latest
+  image: "ethpandaops/spamoor:latest"
+  # The spamoor blob scenario to use (see https://github.com/ethpandaops/spamoor)
+  # Valid blob scenarios are:
+  # - blobs (normal blob transactions only)
+  # - blob-combined (normal & special blobs with replacements)
+  # - blob-conflicting (conflicting blob & dynfee transactions)
+  # - blob-replacements (normal blobs with replacement blob transactions)
+  # Defaults to blob-combined
+  scenario: blob-combined
+  # Throughput of spamoor
+  # Defaults to 3
+  throughput: 3
+  # Maximum number of blobs per transaction
+  # Defaults to 2
+  max_blobs: 2
+  # Max pending blob transactions for spamoor
+  # Defaults to 6
+  max_pending: 6
+  # Max wallets for spamoor
+  # Defaults to 20
+  max_wallets: 20
+  # A list of optional params that will be passed to the spamoor command for modifying its behaviour
+  spamoor_extra_args: []
+
+# Ethereum genesis generator params
+ethereum_genesis_generator_params:
+  # The image to use for ethereum genesis generator
+  image: ethpandaops/ethereum-genesis-generator:3.7.2
+
 # Global parameter to set the exit ip address of services and public ports
 port_publisher:
-  # if you have a service that you want to expose on a specific interfact; set that IP here
+  # if you have a service that you want to expose on a specific interface; set that IP here
   # if you set it to auto it gets the public ip from ident.me and sets it
   # Defaults to constants.PRIVATE_IP_ADDRESS_PLACEHOLDER
   # The default value just means its the IP address of the container in which the service is running
@@ -1083,7 +1112,7 @@ network_params:
 </details>
 
 <details>
-    <summary>A 2-node geth/lighthouse network with optional services (Grafana, Prometheus, transaction-spammer, EngineAPI snooper, and a testnet verifier)</summary>
+    <summary>A 2-node geth/lighthouse network with optional services (Grafana, Prometheus, tx_fuzz, EngineAPI snooper, and a testnet verifier)</summary>
 
 ```yaml
 participants:
@@ -1188,9 +1217,8 @@ Here's a table of where the keys are used
 |---------------|---------------------|------------------|-----------------|-----------------------------|
 | 0             | Builder             | ✅                |                 | As coinbase                |
 | 0             | mev_custom_flood    |                   | ✅              | As the receiver of balance |
-| 1             | blob_spammer        | ✅                |                 | As the sender of blobs     |
 | 3             | transaction_spammer | ✅                |                 | To spam transactions with  |
-| 4             | goomy_blob          | ✅                |                 | As the sender of blobs     |
+| 4             | spamoor_blob        | ✅                |                 | As the sender of blobs     |
 | 6             | mev_flood           | ✅                |                 | As the contract owner      |
 | 7             | mev_flood           | ✅                |                 | As the user_key            |
 | 8             | assertoor           | ✅                | ✅              | As the funding for tests   |
