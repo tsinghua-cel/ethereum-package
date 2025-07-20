@@ -116,7 +116,6 @@ def input_parser(plan, input_args):
     result["global_node_selectors"] = {}
     result["port_publisher"] = get_port_publisher_params("default")
     result["spamoor_params"] = get_default_spamoor_params()
-    result["spamoor_blob_params"] = get_default_spamoor_blob_params()
     result["bunnyfinder_params"] = get_default_bunnyfinder_params()
 
     if constants.NETWORK_NAME.shadowfork in result["network_params"]["network"]:
