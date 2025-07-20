@@ -10,6 +10,22 @@ SECRET_KEY = "supersecure"
 WEB_HTTP_PORT_NUMBER = 3000
 API_HTTP_PORT_NUMBER = 3001
 
+
+def get_blobscan_api_host(blobscan_config, port_publisher):
+    if port_publisher.additional_services_enabled:
+        return port_publisher.additional_services_nat_exit_ip
+    return blobscan_config.ip_address
+
+
+def get_blobscan_api_port(blobscan_config, port_publisher):
+    if port_publisher.additional_services_enabled:
+        public_ports = shared_utils.get_public_ports_for_component(
+            "additional_services", port_publisher, 0
+        )
+        return public_ports[1]  # Second port for the API (first is web)
+    return blobscan_config.ports[constants.HTTP_PORT_ID].number
+
+
 WEB_PORTS = {
     constants.HTTP_PORT_ID: shared_utils.new_port_spec(
         WEB_HTTP_PORT_NUMBER,
@@ -116,7 +132,8 @@ def launch_blobscan(
     blobscan_config = plan.add_service(API_SERVICE_NAME, api_config)
 
     blobscan_api_url = "http://{0}:{1}".format(
-        blobscan_config.ip_address, blobscan_config.ports[constants.HTTP_PORT_ID].number
+        get_blobscan_api_host(blobscan_config, port_publisher),
+        get_blobscan_api_port(blobscan_config, port_publisher),
     )
 
     web_config = get_web_config(
@@ -171,6 +188,7 @@ def get_api_config(
         env_vars={
             "CHAIN_ID": network_id,
             "DATABASE_URL": postgres_url,
+            "DIRECT_URL": postgres_url,
             "REDIS_URI": redis_url,
             "SECRET_KEY": SECRET_KEY,
             "BLOBSCAN_API_PORT": str(API_HTTP_PORT_NUMBER),
@@ -229,6 +247,7 @@ def get_web_config(
         public_ports=public_ports,
         env_vars={
             "DATABASE_URL": postgres_url,
+            "DIRECT_URL": postgres_url,
             "NEXT_PUBLIC_NETWORK_NAME": network_name
             if network_name in constants.PUBLIC_NETWORKS
             else "devnet",

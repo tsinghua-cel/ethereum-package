@@ -27,7 +27,7 @@ def get_config(
     tolerations,
     node_selectors,
     keymanager_enabled,
-    preset,
+    network_params,
     port_publisher,
     vc_index,
 ):
@@ -58,7 +58,6 @@ def get_config(
         "--metrics.address=0.0.0.0",
         "--metrics.port={0}".format(vc_shared.VALIDATOR_CLIENT_METRICS_PORT_NUM),
         # ^^^^^^^^^^^^^^^^^^^ PROMETHEUS CONFIG ^^^^^^^^^^^^^^^^^^^^^
-        "--graffiti=" + full_name,
         "--useProduceBlockV3",
         "--disableKeystoresThreadPool",
     ]
@@ -86,6 +85,9 @@ def get_config(
         "--keymanager.cors=*",
         "--keymanager.tokenFile=" + constants.KEYMANAGER_MOUNT_PATH_ON_CONTAINER,
     ]
+
+    if network_params.gas_limit > 0:
+        cmd.append("--defaultGasLimit={0}".format(network_params.gas_limit))
 
     if len(participant.vc_extra_params) > 0:
         # this is a repeated<proto type>, we convert it into Starlark
@@ -122,7 +124,7 @@ def get_config(
         )
 
     env_vars = participant.vc_extra_env_vars
-    if preset == "minimal":
+    if network_params.preset == "minimal":
         env_vars["LODESTAR_PRESET"] = "minimal"
 
     config_args = {
@@ -137,7 +139,8 @@ def get_config(
             client_type=constants.CLIENT_TYPES.validator,
             image=image[-constants.MAX_LABEL_LENGTH :],
             connected_client=cl_context.client_name,
-            extra_labels=participant.vc_extra_labels,
+            extra_labels=participant.vc_extra_labels
+            | {constants.NODE_INDEX_LABEL_KEY: str(vc_index + 1)},
             supernode=participant.supernode,
         ),
         "tolerations": tolerations,

@@ -28,6 +28,7 @@ def get_config(
     tolerations,
     node_selectors,
     keymanager_enabled,
+    network_params,
     port_publisher,
     vc_index,
 ):
@@ -64,7 +65,6 @@ def get_config(
         "--metrics-allow-origin=*",
         "--metrics-port={0}".format(vc_shared.VALIDATOR_CLIENT_METRICS_PORT_NUM),
         # ^^^^^^^^^^^^^^^^^^^ PROMETHEUS CONFIG ^^^^^^^^^^^^^^^^^^^^^
-        "--graffiti=" + full_name,
     ]
 
     keymanager_api_cmd = [
@@ -74,6 +74,10 @@ def get_config(
         "--http-allow-origin=*",
         "--unencrypted-http-transport",
     ]
+
+    if network_params.gas_limit > 0:
+        cmd.append("--gas-limit={0}".format(network_params.gas_limit))
+        cmd.append("--builder-proposals")
 
     if len(participant.vc_extra_params):
         cmd.extend([param for param in participant.vc_extra_params])
@@ -121,7 +125,8 @@ def get_config(
             client_type=constants.CLIENT_TYPES.validator,
             image=image[-constants.MAX_LABEL_LENGTH :],
             connected_client=cl_context.client_name,
-            extra_labels=participant.vc_extra_labels,
+            extra_labels=participant.vc_extra_labels
+            | {constants.NODE_INDEX_LABEL_KEY: str(vc_index + 1)},
             supernode=participant.supernode,
         ),
         "tolerations": tolerations,
