@@ -3,9 +3,11 @@ PARTICIPANT_CATEGORIES = {
         "el_type",
         "el_image",
         "el_log_level",
+        "el_storage_type",
         "el_extra_env_vars",
         "el_extra_labels",
         "el_extra_params",
+        "el_extra_mounts",
         "el_tolerations",
         "el_volume_size",
         "el_min_cpu",
@@ -18,6 +20,7 @@ PARTICIPANT_CATEGORIES = {
         "cl_extra_env_vars",
         "cl_extra_labels",
         "cl_extra_params",
+        "cl_extra_mounts",
         "cl_tolerations",
         "cl_volume_size",
         "cl_min_cpu",
@@ -32,6 +35,7 @@ PARTICIPANT_CATEGORIES = {
         "vc_extra_env_vars",
         "vc_extra_labels",
         "vc_extra_params",
+        "vc_extra_mounts",
         "vc_tolerations",
         "vc_min_cpu",
         "vc_max_cpu",
@@ -61,6 +65,9 @@ PARTICIPANT_CATEGORIES = {
         "blobber_image",
         "builder_network_params",
         "keymanager_enabled",
+        "vc_beacon_node_indices",
+        "checkpoint_sync_enabled",
+        "skip_start",
     ],
 }
 
@@ -70,9 +77,11 @@ PARTICIPANT_MATRIX_PARAMS = {
             "el_type",
             "el_image",
             "el_log_level",
+            "el_storage_type",
             "el_extra_env_vars",
             "el_extra_labels",
             "el_extra_params",
+            "el_extra_mounts",
             "el_tolerations",
             "el_volume_size",
             "el_min_cpu",
@@ -87,6 +96,7 @@ PARTICIPANT_MATRIX_PARAMS = {
             "cl_extra_env_vars",
             "cl_extra_labels",
             "cl_extra_params",
+            "cl_extra_mounts",
             "cl_tolerations",
             "cl_volume_size",
             "cl_min_cpu",
@@ -100,6 +110,7 @@ PARTICIPANT_MATRIX_PARAMS = {
             "vc_extra_env_vars",
             "vc_extra_labels",
             "vc_extra_params",
+            "vc_extra_mounts",
             "vc_tolerations",
             "vc_min_cpu",
             "vc_max_cpu",
@@ -108,6 +119,8 @@ PARTICIPANT_MATRIX_PARAMS = {
             "validator_count",
             "count",
             "supernode",
+            "vc_beacon_node_indices",
+            "checkpoint_sync_enabled",
         ],
         "vc": [
             "vc_type",
@@ -116,6 +129,7 @@ PARTICIPANT_MATRIX_PARAMS = {
             "vc_extra_env_vars",
             "vc_extra_labels",
             "vc_extra_params",
+            "vc_extra_mounts",
             "vc_tolerations",
             "vc_min_cpu",
             "vc_max_cpu",
@@ -138,16 +152,58 @@ PARTICIPANT_MATRIX_PARAMS = {
     },
 }
 
+PORT_PUBLISHER_PARAMS = {
+    "port_publisher": {
+        "el": [
+            "enabled",
+            "public_port_start",
+            "nat_exit_ip",
+        ],
+        "cl": [
+            "enabled",
+            "public_port_start",
+            "nat_exit_ip",
+        ],
+        "vc": [
+            "enabled",
+            "public_port_start",
+            "nat_exit_ip",
+        ],
+        "remote_signer": [
+            "enabled",
+            "public_port_start",
+            "nat_exit_ip",
+        ],
+        "additional_services": [
+            "enabled",
+            "public_port_start",
+            "nat_exit_ip",
+        ],
+        "mev": [
+            "enabled",
+            "public_port_start",
+            "nat_exit_ip",
+        ],
+        "other": [
+            "enabled",
+            "public_port_start",
+            "nat_exit_ip",
+        ],
+    },
+}
+
 SUBCATEGORY_PARAMS = {
     "network_params": [
         "network",
         "network_id",
         "deposit_contract_address",
         "seconds_per_slot",
+        "slot_duration_ms",
         "num_validator_keys_per_node",
         "preregistered_validator_keys_mnemonic",
         "preregistered_validator_count",
         "genesis_delay",
+        "genesis_time",
         "genesis_gaslimit",
         "max_per_epoch_activation_churn_limit",
         "churn_limit_quotient",
@@ -155,14 +211,23 @@ SUBCATEGORY_PARAMS = {
         "eth1_follow_distance",
         "min_validator_withdrawability_delay",
         "shard_committee_period",
+        "attestation_due_bps_gloas",
+        "aggregate_due_bps_gloas",
+        "sync_message_due_bps_gloas",
+        "contribution_due_bps_gloas",
+        "payload_attestation_due_bps",
+        "view_freeze_cutoff_bps",
+        "inclusion_list_submission_due_bps",
+        "proposer_inclusion_list_cutoff_bps",
         "altair_fork_epoch",
         "bellatrix_fork_epoch",
         "capella_fork_epoch",
         "deneb_fork_epoch",
         "electra_fork_epoch",
         "fulu_fork_epoch",
-        "eip7732_fork_epoch",
+        "gloas_fork_epoch",
         "eip7805_fork_epoch",
+        "eip7441_fork_epoch",
         "network_sync_base_url",
         "force_snapshot_sync",
         "shadowfork_block_height",
@@ -171,9 +236,12 @@ SUBCATEGORY_PARAMS = {
         "custody_requirement",
         "max_blobs_per_block_electra",
         "target_blobs_per_block_electra",
+        "max_request_blocks_deneb",
+        "max_request_blob_sidecars_electra",
         "base_fee_update_fraction_electra",
         "preset",
         "additional_preloaded_contracts",
+        "additional_mnemonics",
         "devnet_repo",
         "prefunded_accounts",
         "max_payload_size",
@@ -203,15 +271,15 @@ SUBCATEGORY_PARAMS = {
         "withdrawal_address",
         "validator_balance",
         "min_epochs_for_data_column_sidecars_requests",
+        "min_epochs_for_block_requests",
     ],
-    "blockscout_params": [
-        "image",
-        "verif_image",
-        "frontend_image",
-    ],
+    "blockscout_params": ["image", "verif_image", "frontend_image", "env"],
     "dora_params": [
         "image",
         "env",
+    ],
+    "checkpointz_params": [
+        "image",
     ],
     "docker_cache_params": [
         "enabled",
@@ -235,6 +303,18 @@ SUBCATEGORY_PARAMS = {
     ],
     "grafana_params": [
         "additional_dashboards",
+        "min_cpu",
+        "max_cpu",
+        "min_mem",
+        "max_mem",
+        "image",
+    ],
+    "tempo_params": [
+        "retention_duration",
+        "ingestion_rate_limit",
+        "ingestion_burst_limit",
+        "max_search_duration",
+        "max_bytes_per_trace",
         "min_cpu",
         "max_cpu",
         "min_mem",
@@ -286,8 +366,14 @@ SUBCATEGORY_PARAMS = {
         "extra_args",
         "spammers",
     ],
-    "ethereum_genesis_generator_params": [
+    "mempool_bridge_params": [
         "image",
+        "source_enodes",
+        "mode",
+        "log_level",
+        "send_concurrency",
+        "polling_interval",
+        "retry_interval",
     ],
     "bunnyfinder_params": [
         "image",
@@ -301,19 +387,22 @@ SUBCATEGORY_PARAMS = {
         "llm_model",
         "replay_project"
     ],
-    "port_publisher": [
-        "nat_exit_ip",
-        "el",
-        "cl",
-        "vc",
-        "remote_signer",
-        "additional_services",
-        "mev",
-        "other",
+    "ethereum_genesis_generator_params": [
+        "image",
+        "extra_env",
+    ],
+    "bootnodoor_params": [
+        "image",
+        "min_cpu",
+        "max_cpu",
+        "min_mem",
+        "max_mem",
+        "extra_args",
     ],
 }
 
 ADDITIONAL_SERVICES_PARAMS = [
+    "bootnodoor",
     "assertoor",
     "broadcaster",
     "tx_fuzz",
@@ -321,19 +410,23 @@ ADDITIONAL_SERVICES_PARAMS = [
     "forkmon",
     "blockscout",
     "dora",
+    "checkpointz",
     "full_beaconchain_explorer",
     "prometheus_grafana",
     "prometheus",
     "grafana",
+    "tempo",
     "blobscan",
     "dugtrio",
     "blutgang",
+    "erpc",
     "forky",
     "apache",
     "nginx",
     "tracoor",
-    "spamoor",
     "bunnyfinder",
+    "mempool_bridge",
+    "spamoor",
 ]
 
 ADDITIONAL_CATEGORY_PARAMS = {
@@ -379,12 +472,41 @@ def validate_params(plan, input_args, category, allowed_params):
                 )
 
 
+def validate_nested_params(
+    plan, input_args, category, nested_param_definition, special_keys=None
+):
+    if category not in input_args:
+        return
+
+    special_keys = special_keys or []
+    allowed_top_level_keys = list(nested_param_definition.keys()) + special_keys
+
+    # Validate top-level keys
+    for param in input_args[category].keys():
+        if param not in allowed_top_level_keys:
+            fail(
+                "Invalid parameter {0} for {1}, allowed fields: {2}".format(
+                    param, category, allowed_top_level_keys
+                )
+            )
+
+    # Validate nested parameters
+    for sub_param in input_args[category]:
+        if sub_param not in special_keys and sub_param in nested_param_definition:
+            validate_params(
+                plan,
+                input_args[category],
+                sub_param,
+                nested_param_definition[sub_param],
+            )
+
+
 def sanity_check(plan, input_args):
     # Checks participants
     deep_validate_params(
         plan, input_args, "participants", PARTICIPANT_CATEGORIES["participants"]
     )
-    # Checks participants_matrix
+    # Checks participants_matrix (uses original logic for arrays of objects)
     if "participants_matrix" in input_args:
         for sub_matrix_participant in input_args["participants_matrix"]:
             if (
@@ -407,6 +529,15 @@ def sanity_check(plan, input_args):
                     ],
                 )
 
+    # Checks port_publisher (uses new generic validation for key-value mappings)
+    validate_nested_params(
+        plan,
+        input_args,
+        "port_publisher",
+        PORT_PUBLISHER_PARAMS["port_publisher"],
+        ["nat_exit_ip"],
+    )
+
     # Checks additional services
     if "additional_services" in input_args:
         for additional_services in input_args["additional_services"]:
@@ -427,10 +558,12 @@ def sanity_check(plan, input_args):
         combined_root_params = (
             PARTICIPANT_CATEGORIES.keys()
             + PARTICIPANT_MATRIX_PARAMS.keys()
+            + PORT_PUBLISHER_PARAMS.keys()
             + SUBCATEGORY_PARAMS.keys()
             + ADDITIONAL_CATEGORY_PARAMS.keys()
         )
         combined_root_params.append("additional_services")
+        combined_root_params.append("extra_files")
 
         if param not in combined_root_params:
             fail(

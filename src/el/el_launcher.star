@@ -12,6 +12,7 @@ nethermind = import_module("./nethermind/nethermind_launcher.star")
 reth = import_module("./reth/reth_launcher.star")
 ethereumjs = import_module("./ethereumjs/ethereumjs_launcher.star")
 nimbus_eth1 = import_module("./nimbus-eth1/nimbus_launcher.star")
+ethrex = import_module("./ethrex/ethrex_launcher.star")
 
 
 def launch(
@@ -29,6 +30,8 @@ def launch(
     port_publisher,
     mev_builder_type,
     mev_params,
+    extra_files_artifacts={},
+    bootnodoor_enode=None,
 ):
     el_launchers = {
         constants.EL_TYPE.geth: {
@@ -107,12 +110,29 @@ def launch(
             "get_config": nimbus_eth1.get_config,
             "get_el_context": nimbus_eth1.get_el_context,
         },
+        constants.EL_TYPE.ethrex: {
+            "launcher": ethrex.new_ethrex_launcher(
+                el_cl_data,
+                jwt_file,
+            ),
+            "get_config": ethrex.get_config,
+            "get_el_context": ethrex.get_el_context,
+            "launch_method": ethrex.launch,
+        },
     }
 
     all_el_contexts = []
     network_name = shared_utils.get_network_name(network_params.network)
     el_service_configs = {}
     el_participant_info = {}
+
+    # Generic bootnode ENODE override - can be set from bootnodoor or any other bootnode service
+    if bootnodoor_enode != None:
+        plan.print(
+            "Using bootnode ENODE override for all EL clients: {0}".format(
+                bootnodoor_enode
+            )
+        )
 
     for index, participant in enumerate(participants):
         cl_type = participant.cl_type
@@ -121,8 +141,10 @@ def launch(
             participant.node_selectors,
             global_node_selectors,
         )
-        tolerations = input_parser.get_client_tolerations(
-            participant.el_tolerations, participant.tolerations, global_tolerations
+        tolerations = shared_utils.get_tolerations(
+            specific_container_tolerations=participant.el_tolerations,
+            participant_tolerations=participant.tolerations,
+            global_tolerations=global_tolerations,
         )
 
         if el_type not in el_launchers:
@@ -157,6 +179,8 @@ def launch(
                 port_publisher,
                 index,
                 network_params,
+                extra_files_artifacts,
+                bootnodoor_enode,
             )
 
             # Add participant el additional prometheus metrics
@@ -180,11 +204,15 @@ def launch(
                 port_publisher,
                 index,
                 network_params,
+                extra_files_artifacts,
+                bootnodoor_enode,
             )
 
             el_participant_info[el_service_name] = {
                 "client_name": el_type,
                 "supernode": participant.supernode,
+                "participant_index": index,
+                "participant": participant,
             }
 
     # add remainder of el's in parallel to speed package execution
@@ -192,9 +220,12 @@ def launch(
     if len(el_service_configs) > 0:
         el_services = plan.add_services(el_service_configs)
 
-    # Create contexts for each service
+    # Create contexts ordered by participant index
+    el_contexts_temp = {}
     for el_service_name, el_service in el_services.items():
         el_type = el_participant_info[el_service_name]["client_name"]
+        participant_index = el_participant_info[el_service_name]["participant_index"]
+        participant = el_participant_info[el_service_name]["participant"]
         get_el_context = el_launchers[el_type]["get_el_context"]
 
         el_context = get_el_context(
@@ -209,7 +240,12 @@ def launch(
             if metrics_info != None:
                 metrics_info["config"] = participant.prometheus_config
 
-        all_el_contexts.append(el_context)
+        el_contexts_temp[participant_index] = el_context
+
+    # Add remaining EL contexts in participant order (skipping index 0 which was added earlier)
+    for i in range(1, len(participants)):
+        if i in el_contexts_temp:
+            all_el_contexts.append(el_contexts_temp[i])
 
     plan.print("Successfully added {0} EL participants".format(num_participants))
     return all_el_contexts

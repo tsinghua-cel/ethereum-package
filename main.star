@@ -15,8 +15,10 @@ tx_fuzz = import_module("./src/tx_fuzz/tx_fuzz.star")
 forkmon = import_module("./src/forkmon/forkmon_launcher.star")
 
 dora = import_module("./src/dora/dora_launcher.star")
+checkpointz = import_module("./src/checkpointz/checkpointz_launcher.star")
 dugtrio = import_module("./src/dugtrio/dugtrio_launcher.star")
 blutgang = import_module("./src/blutgang/blutgang_launcher.star")
+erpc = import_module("./src/erpc/erpc_launcher.star")
 blobscan = import_module("./src/blobscan/blobscan_launcher.star")
 forky = import_module("./src/forky/forky_launcher.star")
 tracoor = import_module("./src/tracoor/tracoor_launcher.star")
@@ -28,6 +30,7 @@ full_beaconchain_explorer = import_module(
 blockscout = import_module("./src/blockscout/blockscout_launcher.star")
 prometheus = import_module("./src/prometheus/prometheus_launcher.star")
 grafana = import_module("./src/grafana/grafana_launcher.star")
+tempo = import_module("./src/tempo/tempo_launcher.star")
 commit_boost_mev_boost = import_module(
     "./src/mev/commit-boost/mev_boost/mev_boost_launcher.star"
 )
@@ -46,11 +49,13 @@ flashbots_mev_boost = import_module(
 flashbots_mev_relay = import_module(
     "./src/mev/flashbots/mev_relay/mev_relay_launcher.star"
 )
+helix_relay = import_module("./src/mev/helix/helix_relay_launcher.star")
 mock_mev = import_module("./src/mev/flashbots/mock_mev/mock_mev_launcher.star")
 mev_custom_flood = import_module(
     "./src/mev/flashbots/mev_custom_flood/mev_custom_flood_launcher.star"
 )
 broadcaster = import_module("./src/broadcaster/broadcaster.star")
+mempool_bridge = import_module("./src/mempool_bridge/mempool_bridge_launcher.star")
 assertoor = import_module("./src/assertoor/assertoor_launcher.star")
 get_prefunded_accounts = import_module(
     "./src/prefunded_accounts/get_prefunded_accounts.star"
@@ -80,6 +85,18 @@ def run(plan, args={}):
 
     num_participants = len(args_with_right_defaults.participants)
     network_params = args_with_right_defaults.network_params
+
+    # Process extra_files - create artifacts from provided content
+    extra_files_artifacts = {}
+    extra_files = getattr(args_with_right_defaults, "extra_files", {})
+    if extra_files:
+        for name, content in extra_files.items():
+            # Use render_templates to create a file with the content
+            # The file inside the artifact will be named after the extra_files key
+            template_data = {name: struct(template=content, data={})}
+            artifact = plan.render_templates(template_data, name + "_artifact")
+            extra_files_artifacts[name] = artifact
+
     mev_params = args_with_right_defaults.mev_params
     parallel_keystore_generation = args_with_right_defaults.parallel_keystore_generation
     persistent = args_with_right_defaults.persistent
@@ -90,13 +107,17 @@ def run(plan, args={}):
     apache_port = args_with_right_defaults.apache_port
     nginx_port = args_with_right_defaults.nginx_port
     docker_cache_params = args_with_right_defaults.docker_cache_params
+    detected_backend = plan.get_cluster_type()
 
     for index, participant in enumerate(args_with_right_defaults.participants):
         if (
             num_participants == 1
             and participant.cl_type == constants.CL_TYPE.lighthouse
         ):
-            if "--target-peers=0" not in participant.cl_extra_params:
+            if (
+                "--target-peers=0" not in participant.cl_extra_params
+                and network_params.network == constants.NETWORK_NAME.kurtosis
+            ):
                 participant.cl_extra_params.append("--target-peers=0")
 
     prefunded_accounts = genesis_constants.PRE_FUNDED_ACCOUNTS
@@ -105,7 +126,11 @@ def run(plan, args={}):
         != constants.DEFAULT_MNEMONIC
     ):
         prefunded_accounts = get_prefunded_accounts.get_accounts(
-            plan, network_params.preregistered_validator_keys_mnemonic
+            plan,
+            network_params.preregistered_validator_keys_mnemonic,
+            21,
+            global_tolerations,
+            global_node_selectors,
         )
 
     grafana_datasource_config_template = read_file(
@@ -113,6 +138,10 @@ def run(plan, args={}):
     )
     grafana_dashboards_config_template = read_file(
         static_files.GRAFANA_DASHBOARD_PROVIDERS_CONFIG_TEMPLATE_FILEPATH
+    )
+    tempo_config_template = read_file(static_files.TEMPO_CONFIG_TEMPLATE_FILEPATH)
+    mempool_bridge_config_template = read_file(
+        static_files.MEMPOOL_BRIDGE_CONFIG_TEMPLATE_FILEPATH
     )
     prometheus_additional_metrics_jobs = []
     raw_jwt_secret = read_file(static_files.JWT_PATH_FILEPATH)
@@ -161,6 +190,16 @@ def run(plan, args={}):
             )
     plan.print("Read the prometheus, grafana templates")
 
+    tempo_otlp_grpc_url = None
+    tempo_query_url = None
+    if "tempo" in args_with_right_defaults.additional_services:
+        tempo_otlp_grpc_url = "http://{}:{}".format(
+            tempo.SERVICE_NAME, tempo.OTLP_GRPC_PORT_NUMBER
+        )
+        tempo_query_url = "http://{}:{}".format(
+            tempo.SERVICE_NAME, tempo.HTTP_PORT_NUMBER
+        )
+
     if args_with_right_defaults.mev_type == constants.MEV_RS_MEV_TYPE:
         plan.print("Generating mev-rs builder config file")
         mev_rs_builder_config_file = mev_rs_mev_builder.new_builder_config(
@@ -175,11 +214,12 @@ def run(plan, args={}):
     elif (
         args_with_right_defaults.mev_type == constants.FLASHBOTS_MEV_TYPE
         or args_with_right_defaults.mev_type == constants.COMMIT_BOOST_MEV_TYPE
+        or args_with_right_defaults.mev_type == constants.HELIX_MEV_TYPE
     ):
         plan.print("Generating flashbots builder config file")
         flashbots_builder_config_file = flashbots_mev_rbuilder.new_builder_config(
             plan,
-            constants.FLASHBOTS_MEV_TYPE,
+            args_with_right_defaults.mev_type,
             network_params,
             constants.VALIDATING_REWARDS_ACCOUNT,
             network_params.preregistered_validator_keys_mnemonic,
@@ -200,6 +240,7 @@ def run(plan, args={}):
         el_cl_data_files_artifact_uuid,
         network_id,
         osaka_time,
+        shadowfork_block_height,
     ) = participant_network.launch_participant_network(
         plan,
         args_with_right_defaults,
@@ -212,6 +253,9 @@ def run(plan, args={}):
         global_node_selectors,
         keymanager_enabled,
         parallel_keystore_generation,
+        extra_files_artifacts,
+        tempo_otlp_grpc_url,
+        detected_backend,
     )
 
     plan.print(
@@ -260,9 +304,10 @@ def run(plan, args={}):
             plan,
             all_el_contexts,
             global_node_selectors,
+            global_tolerations,
         )
         fuzz_target = "http://{0}:{1}".format(
-            broadcaster_service.ip_address,
+            broadcaster_service.name,
             broadcaster.PORT,
         )
 
@@ -296,6 +341,7 @@ def run(plan, args={}):
             jwt_file,
             args_with_right_defaults.global_log_level,
             global_node_selectors,
+            global_tolerations,
             args_with_right_defaults.mev_params,
         )
         mev_endpoints.append(endpoint)
@@ -304,6 +350,7 @@ def run(plan, args={}):
         args_with_right_defaults.mev_type == constants.FLASHBOTS_MEV_TYPE
         or args_with_right_defaults.mev_type == constants.MEV_RS_MEV_TYPE
         or args_with_right_defaults.mev_type == constants.COMMIT_BOOST_MEV_TYPE
+        or args_with_right_defaults.mev_type == constants.HELIX_MEV_TYPE
     ):
         blocksim_uri = "http://{0}:{1}".format(
             all_el_contexts[-1].ip_addr, all_el_contexts[-1].rpc_port_num
@@ -328,6 +375,7 @@ def run(plan, args={}):
                 args_with_right_defaults.port_publisher,
                 num_participants,
                 global_node_selectors,
+                global_tolerations,
             )
         elif args_with_right_defaults.mev_type == constants.MEV_RS_MEV_TYPE:
             endpoint, relay_ip_address, relay_port = mev_rs_mev_relay.launch_mev_relay(
@@ -339,6 +387,23 @@ def run(plan, args={}):
                 args_with_right_defaults.port_publisher,
                 num_participants,
                 global_node_selectors,
+                global_tolerations,
+            )
+        elif args_with_right_defaults.mev_type == constants.HELIX_MEV_TYPE:
+            endpoint = helix_relay.launch_helix_relay(
+                plan,
+                network_params,
+                mev_params,
+                beacon_uri,
+                genesis_validators_root,
+                final_genesis_timestamp,
+                blocksim_uri,
+                persistent,
+                args_with_right_defaults.port_publisher,
+                num_participants,
+                global_node_selectors,
+                global_tolerations,
+                el_cl_data_files_artifact_uuid,
             )
         else:
             fail("Invalid MEV type")
@@ -362,6 +427,7 @@ def run(plan, args={}):
                 if (
                     args_with_right_defaults.mev_type == constants.FLASHBOTS_MEV_TYPE
                     or args_with_right_defaults.mev_type == constants.MOCK_MEV_TYPE
+                    or args_with_right_defaults.mev_type == constants.HELIX_MEV_TYPE
                 ):
                     mev_boost_launcher = flashbots_mev_boost.new_mev_boost_launcher(
                         MEV_BOOST_SHOULD_CHECK_RELAY,
@@ -385,6 +451,7 @@ def run(plan, args={}):
                         args_with_right_defaults.port_publisher,
                         index,
                         global_node_selectors,
+                        global_tolerations,
                     )
                 elif args_with_right_defaults.mev_type == constants.MEV_RS_MEV_TYPE:
                     plan.print("Launching mev-rs mev boost")
@@ -409,6 +476,7 @@ def run(plan, args={}):
                         args_with_right_defaults.port_publisher,
                         index,
                         global_node_selectors,
+                        global_tolerations,
                     )
                 elif (
                     args_with_right_defaults.mev_type == constants.COMMIT_BOOST_MEV_TYPE
@@ -435,6 +503,7 @@ def run(plan, args={}):
                         args_with_right_defaults.port_publisher,
                         index,
                         global_node_selectors,
+                        global_tolerations,
                         final_genesis_timestamp,
                     )
                 else:
@@ -466,6 +535,7 @@ def run(plan, args={}):
                 fuzz_target,
                 tx_fuzz_params,
                 global_node_selectors,
+                global_tolerations,
             )
             plan.print("Successfully launched tx-fuzz")
         elif additional_service == "forkmon":
@@ -478,6 +548,7 @@ def run(plan, args={}):
                 forkmon_config_template,
                 all_el_contexts,
                 global_node_selectors,
+                global_tolerations,
                 args_with_right_defaults.port_publisher,
                 index,
                 args_with_right_defaults.docker_cache_params,
@@ -490,11 +561,13 @@ def run(plan, args={}):
                 all_el_contexts,
                 persistent,
                 global_node_selectors,
+                global_tolerations,
                 args_with_right_defaults.port_publisher,
                 index,
                 args_with_right_defaults.docker_cache_params,
                 args_with_right_defaults.blockscout_params,
                 network_params,
+                shadowfork_block_height,
             )
             plan.print("Successfully launched blockscout")
         elif additional_service == "dora":
@@ -509,13 +582,36 @@ def run(plan, args={}):
                 network_params,
                 dora_params,
                 global_node_selectors,
+                global_tolerations,
                 mev_endpoints,
                 mev_endpoint_names,
                 args_with_right_defaults.port_publisher,
                 index,
                 args_with_right_defaults.docker_cache_params,
+                el_cl_data_files_artifact_uuid,
             )
             plan.print("Successfully launched dora")
+        elif additional_service == "checkpointz":
+            plan.print("Launching checkpointz")
+            checkpointz_config_template = read_file(
+                static_files.CHECKPOINTZ_CONFIG_TEMPLATE_FILEPATH
+            )
+            checkpointz_params = args_with_right_defaults.checkpointz_params
+            checkpointz.launch_checkpointz(
+                plan,
+                checkpointz_config_template,
+                all_participants,
+                args_with_right_defaults.participants,
+                network_params,
+                checkpointz_params,
+                global_node_selectors,
+                global_tolerations,
+                args_with_right_defaults.port_publisher,
+                index,
+                args_with_right_defaults.docker_cache_params,
+                el_cl_data_files_artifact_uuid,
+            )
+            plan.print("Successfully launched checkpointz")
         elif additional_service == "dugtrio":
             plan.print("Launching dugtrio")
             dugtrio_config_template = read_file(
@@ -528,6 +624,7 @@ def run(plan, args={}):
                 args_with_right_defaults.participants,
                 network_params,
                 global_node_selectors,
+                global_tolerations,
                 args_with_right_defaults.port_publisher,
                 index,
                 args_with_right_defaults.docker_cache_params,
@@ -545,11 +642,28 @@ def run(plan, args={}):
                 args_with_right_defaults.participants,
                 network_params,
                 global_node_selectors,
+                global_tolerations,
                 args_with_right_defaults.port_publisher,
                 index,
                 args_with_right_defaults.docker_cache_params,
             )
             plan.print("Successfully launched blutgang")
+        elif additional_service == "erpc":
+            plan.print("Launching erpc")
+            erpc_config_template = read_file(static_files.ERPC_CONFIG_TEMPLATE_FILEPATH)
+            erpc.launch_erpc(
+                plan,
+                erpc_config_template,
+                all_participants,
+                args_with_right_defaults.participants,
+                network_params,
+                global_node_selectors,
+                global_tolerations,
+                args_with_right_defaults.port_publisher,
+                index,
+                args_with_right_defaults.docker_cache_params,
+            )
+            plan.print("Successfully launched erpc")
         elif additional_service == "blobscan":
             plan.print("Launching blobscan")
             blobscan.launch_blobscan(
@@ -560,6 +674,7 @@ def run(plan, args={}):
                 network_params,
                 persistent,
                 global_node_selectors,
+                global_tolerations,
                 args_with_right_defaults.port_publisher,
                 index,
                 args_with_right_defaults.docker_cache_params,
@@ -578,6 +693,7 @@ def run(plan, args={}):
                 el_cl_data_files_artifact_uuid,
                 network_params,
                 global_node_selectors,
+                global_tolerations,
                 final_genesis_timestamp,
                 args_with_right_defaults.port_publisher,
                 index,
@@ -597,6 +713,7 @@ def run(plan, args={}):
                 el_cl_data_files_artifact_uuid,
                 network_params,
                 global_node_selectors,
+                global_tolerations,
                 final_genesis_timestamp,
                 args_with_right_defaults.port_publisher,
                 index,
@@ -614,6 +731,7 @@ def run(plan, args={}):
                 args_with_right_defaults.port_publisher,
                 index,
                 global_node_selectors,
+                global_tolerations,
                 args_with_right_defaults.docker_cache_params,
             )
             plan.print("Successfully launched apache")
@@ -628,6 +746,7 @@ def run(plan, args={}):
                 args_with_right_defaults.port_publisher,
                 index,
                 global_node_selectors,
+                global_tolerations,
                 args_with_right_defaults.docker_cache_params,
             )
             plan.print("Successfully launched nginx")
@@ -644,6 +763,7 @@ def run(plan, args={}):
                 all_el_contexts,
                 persistent,
                 global_node_selectors,
+                global_tolerations,
                 args_with_right_defaults.port_publisher,
                 index,
             )
@@ -674,11 +794,25 @@ def run(plan, args={}):
                 grafana_dashboards_config_template,
                 prometheus_private_url,
                 global_node_selectors,
+                global_tolerations,
                 args_with_right_defaults.grafana_params,
                 args_with_right_defaults.port_publisher,
                 index,
+                tempo_query_url,
             )
             plan.print("Successfully launched grafana")
+        elif additional_service == "tempo":
+            plan.print("Launching tempo...")
+            tempo.launch_tempo(
+                plan,
+                tempo_config_template,
+                global_node_selectors,
+                global_tolerations,
+                args_with_right_defaults.tempo_params,
+                args_with_right_defaults.port_publisher,
+                index,
+            )
+            plan.print("Successfully launched tempo")
         elif additional_service == "prometheus_grafana":
             # Allow prometheus to be launched last so is able to collect metrics from other services
             launch_prometheus_grafana = True
@@ -699,6 +833,7 @@ def run(plan, args={}):
                 args_with_right_defaults.port_publisher,
                 index,
                 global_node_selectors,
+                global_tolerations,
                 args_with_right_defaults.docker_cache_params,
             )
             plan.print("Successfully launched assertoor")
@@ -710,8 +845,25 @@ def run(plan, args={}):
                 fuzz_target,
                 args_with_right_defaults.custom_flood_params,
                 global_node_selectors,
+                global_tolerations,
                 args_with_right_defaults.docker_cache_params,
             )
+        elif additional_service == "mempool_bridge":
+            plan.print("Launching mempool-bridge")
+            mempool_bridge.launch_mempool_bridge(
+                plan,
+                mempool_bridge_config_template,
+                all_el_contexts,
+                args_with_right_defaults.mempool_bridge_params,
+                args_with_right_defaults.network_params,
+                global_node_selectors,
+                global_tolerations,
+                args_with_right_defaults.port_publisher,
+                index,
+                args_with_right_defaults.docker_cache_params,
+                args_with_right_defaults.global_log_level,
+            )
+            plan.print("Successfully launched mempool-bridge")
         elif additional_service == "spamoor":
             plan.print("Launching spamoor")
             spamoor_config_template = read_file(
@@ -729,6 +881,7 @@ def run(plan, args={}):
                 args_with_right_defaults.participants,
                 args_with_right_defaults.spamoor_params,
                 global_node_selectors,
+                global_tolerations,
                 args_with_right_defaults.network_params,
                 args_with_right_defaults.port_publisher,
                 index,
@@ -776,9 +929,11 @@ def run(plan, args={}):
             grafana_dashboards_config_template,
             prometheus_private_url,
             global_node_selectors,
+            global_tolerations,
             args_with_right_defaults.grafana_params,
             args_with_right_defaults.port_publisher,
             prometheus_grafana_index,
+            tempo_query_url,
         )
         plan.print("Successfully launched grafana")
 

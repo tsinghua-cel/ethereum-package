@@ -43,6 +43,8 @@ def launch(
     port_publisher,
     participant_index,
     network_params,
+    extra_files_artifacts,
+    bootnodoor_enode=None,
 ):
     cl_client_name = service_name.split("-")[3]
 
@@ -60,6 +62,8 @@ def launch(
         port_publisher,
         participant_index,
         network_params,
+        extra_files_artifacts,
+        bootnodoor_enode,
     )
 
     service = plan.add_service(service_name, config)
@@ -86,6 +90,8 @@ def get_config(
     port_publisher,
     participant_index,
     network_params,
+    extra_files_artifacts,
+    bootnodoor_enode=None,
 ):
     log_level = input_parser.get_client_log_level_or_default(
         participant.el_log_level, global_log_level, VERBOSITY_LEVELS
@@ -154,19 +160,18 @@ def get_config(
         "{0}".format(
             "--sync-mode=FULL"
             if network_params.network in constants.NETWORK_NAME.kurtosis
+            or participant.el_storage_type == "archive"
             else "--sync-mode=SNAP"
-        ),
-        "--data-storage-format={0}".format(
-            "VERKLE" if "verkle-gen" in network_params.network else "BONSAI"
         ),
         "--metrics-enabled=true",
         "--metrics-host=0.0.0.0",
         "--metrics-port={0}".format(METRICS_PORT_NUM),
         "--min-gas-price=1000000000",
-        "--bonsai-limit-trie-logs-enabled=false"
-        if "verkle" not in network_params.network
-        else "",
     ]
+
+    # Configure storage type - besu defaults to full (BONSAI), use FOREST for archive
+    if participant.el_storage_type == "archive":
+        cmd.append("--data-storage-format=FOREST")
 
     if network_params.gas_limit > 0:
         cmd.append("--target-gas-limit={0}".format(network_params.gas_limit))
@@ -180,7 +185,10 @@ def get_config(
     else:
         cmd.append("--network=" + network_params.network)
 
-    if (
+    # Handle bootnode configuration with bootnodoor_enode override
+    if bootnodoor_enode != None:
+        cmd.append("--bootnodes=" + bootnodoor_enode)
+    elif (
         network_params.network == constants.NETWORK_NAME.kurtosis
         or constants.NETWORK_NAME.shadowfork in network_params.network
     ):
@@ -231,6 +239,13 @@ def get_config(
             ],
         )
 
+    # Add extra mounts - automatically handle file uploads
+    processed_mounts = shared_utils.process_extra_mounts(
+        plan, participant.el_extra_mounts, extra_files_artifacts
+    )
+    for mount_path, artifact in processed_mounts.items():
+        files[mount_path] = artifact
+
     config_args = {
         "image": participant.el_image,
         "ports": used_ports,
@@ -276,17 +291,17 @@ def get_el_context(
         plan, service_name, constants.RPC_PORT_ID
     )
 
-    metrics_url = "{0}:{1}".format(service.ip_address, METRICS_PORT_NUM)
+    metrics_url = "{0}:{1}".format(service.name, METRICS_PORT_NUM)
     besu_metrics_info = node_metrics.new_node_metrics_info(
         service_name, METRICS_PATH, metrics_url
     )
-    http_url = "http://{0}:{1}".format(service.ip_address, RPC_PORT_NUM)
-    ws_url = "ws://{0}:{1}".format(service.ip_address, WS_PORT_NUM)
+    http_url = "http://{0}:{1}".format(service.name, RPC_PORT_NUM)
+    ws_url = "ws://{0}:{1}".format(service.name, WS_PORT_NUM)
 
     return el_context.new_el_context(
         client_name="besu",
         enode=enode,
-        ip_addr=service.ip_address,
+        ip_addr=service.name,
         rpc_port_num=RPC_PORT_NUM,
         ws_port_num=WS_PORT_NUM,
         engine_rpc_port_num=ENGINE_HTTP_RPC_PORT_NUM,

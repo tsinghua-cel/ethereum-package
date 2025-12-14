@@ -9,10 +9,7 @@ participants:
     cl_type: lighthouse
   - el_type: reth
     cl_type: lodestar
-  - el_type: nimbus
-    cl_type: teku
-    el_image: statusim/nimbus-eth1:master
-  - el_type: ethereumjs
+  - el_type: ethrex
     cl_type: grandine
 port_publisher:
   nat_exit_ip: KURTOSIS_IP_ADDR_PLACEHOLDER
@@ -41,12 +38,11 @@ additional_services:
   - tx_fuzz
   - forkmon
   - dora
+  - checkpointz
   - prometheus
   - grafana
-  - custom_flood
-  - blobscan
   - dugtrio
-  - blutgang
+  - erpc
   - apache
   - tracoor
   - spamoor

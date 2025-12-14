@@ -172,6 +172,7 @@ def get_network_name(network):
 def get_final_genesis_timestamp(plan, padding):
     result = plan.run_sh(
         description="Getting final genesis timestamp",
+        name="read-genesis-timestamp",
         run="echo -n $(($(date +%s) + " + str(padding) + "))",
         store=[StoreSpec(src="/tmp", name="final-genesis-timestamp")],
     )
@@ -278,7 +279,7 @@ def __get_port_range(port_start, max_ports_per_component, participant_index):
     return (public_port_start, public_port_end)
 
 
-def get_port_specs(port_assignments):
+def get_port_specs(port_assignments, wait=NOT_PROVIDED_WAIT):
     ports = {}
     for port_id, port in port_assignments.items():
         if port_id in [
@@ -291,13 +292,13 @@ def get_port_specs(port_assignments):
             constants.WS_PORT_ID,
             constants.PROFILING_PORT_ID,
         ]:
-            ports.update({port_id: new_port_spec(port, TCP_PROTOCOL)})
+            ports.update({port_id: new_port_spec(port, TCP_PROTOCOL, wait=wait)})
         elif port_id in [
             constants.UDP_DISCOVERY_PORT_ID,
             constants.QUIC_DISCOVERY_PORT_ID,
             constants.TORRENT_PORT_ID,
         ]:
-            ports.update({port_id: new_port_spec(port, UDP_PROTOCOL)})
+            ports.update({port_id: new_port_spec(port, UDP_PROTOCOL, wait=wait)})
         elif port_id == constants.DEBUG_PORT_ID:
             ports.update(
                 {
@@ -311,12 +312,16 @@ def get_port_specs(port_assignments):
             constants.METRICS_PORT_ID,
             constants.VALIDATOR_HTTP_PORT_ID,
             constants.ADMIN_PORT_ID,
-            constants.VALDIATOR_GRPC_PORT_ID,
+            constants.VALIDATOR_GRPC_PORT_ID,
             constants.RBUILDER_PORT_ID,
             constants.RBUILDER_METRICS_PORT_ID,
         ]:
             ports.update(
-                {port_id: new_port_spec(port, TCP_PROTOCOL, HTTP_APPLICATION_PROTOCOL)}
+                {
+                    port_id: new_port_spec(
+                        port, TCP_PROTOCOL, HTTP_APPLICATION_PROTOCOL, wait=wait
+                    )
+                }
             )
         else:
             fail("Unknown port id: {}".format(port_id))
@@ -416,3 +421,74 @@ def ensure_alphanumeric_bounds(s):
             break
 
     return s[start:end]
+
+
+def process_extra_mounts(plan, extra_mounts, extra_files_artifacts={}):
+    """
+    Process extra mounts by resolving extra_files references ONLY.
+
+    Args:
+        plan: The Kurtosis plan object
+        extra_mounts: Dictionary where keys are mount paths and values are extra_file names
+        extra_files_artifacts: Dictionary of extra files artifacts from extra_files
+
+    Returns:
+        Dictionary where keys are mount paths and values are artifact names/objects
+    """
+    if not extra_mounts:
+        return {}
+
+    processed_mounts = {}
+    for mount_path, source in extra_mounts.items():
+        # Non-string values (Files artifacts or other objects) - use directly
+        if type(source) != "string":
+            processed_mounts[mount_path] = source
+            continue
+
+        # Source MUST be an extra_files reference
+        if source not in extra_files_artifacts:
+            fail(
+                "Mount source '"
+                + source
+                + "' not found in extra_files. All extra_mounts must reference files defined in extra_files."
+            )
+
+        processed_mounts[mount_path] = extra_files_artifacts[source]
+
+    return processed_mounts
+
+
+def get_tolerations(
+    specific_container_tolerations=[], participant_tolerations=[], global_tolerations=[]
+):
+    toleration_list = []
+    tolerations = []
+    tolerations = (
+        specific_container_tolerations if specific_container_tolerations else []
+    )
+    if not tolerations:
+        tolerations = participant_tolerations if participant_tolerations else []
+        if not tolerations:
+            tolerations = global_tolerations if global_tolerations else []
+    if tolerations != []:
+        for toleration_data in tolerations:
+            if toleration_data.get("toleration_seconds"):
+                toleration_list.append(
+                    Toleration(
+                        key=toleration_data.get("key", ""),
+                        value=toleration_data.get("value", ""),
+                        operator=toleration_data.get("operator", ""),
+                        effect=toleration_data.get("effect", ""),
+                        toleration_seconds=toleration_data.get("toleration_seconds"),
+                    )
+                )
+            else:
+                toleration_list.append(
+                    Toleration(
+                        key=toleration_data.get("key", ""),
+                        value=toleration_data.get("value", ""),
+                        operator=toleration_data.get("operator", ""),
+                        effect=toleration_data.get("effect", ""),
+                    )
+                )
+    return toleration_list

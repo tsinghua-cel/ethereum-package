@@ -7,11 +7,12 @@ PRYSM_BEACON_RPC_PORT = 4000
 
 
 def get_config(
+    plan,
     participant,
     el_cl_genesis_data,
     keymanager_file,
     image,
-    beacon_http_url,
+    beacon_http_urls,
     cl_context,
     el_context,
     remote_signer_context,
@@ -25,6 +26,7 @@ def get_config(
     network_params,
     port_publisher,
     vc_index,
+    extra_files_artifacts,
 ):
     validator_keys_dirpath = shared_utils.path_join(
         constants.VALIDATOR_KEYS_DIRPATH_ON_SERVICE_CONTAINER,
@@ -41,7 +43,7 @@ def get_config(
         + constants.GENESIS_CONFIG_MOUNT_PATH_ON_CONTAINER
         + "/config.yaml",
         "--suggested-fee-recipient=" + constants.VALIDATING_REWARDS_ACCOUNT,
-        "--beacon-rest-api-provider=" + beacon_http_url,
+        "--beacon-rest-api-provider=" + ",".join(beacon_http_urls),
         # vvvvvvvvvvvvvvvvvvv METRICS CONFIG vvvvvvvvvvvvvvvvvvvvv
         "--disable-monitoring=false",
         "--monitoring-host=0.0.0.0",
@@ -51,7 +53,7 @@ def get_config(
 
     # Only add RPC provider if we're not using a blobber (blobber doesn't proxy RPC)
     # Blobber uses port 5000, so check if that's in the URL
-    if ":5000" not in beacon_http_url:
+    if ":5000" not in beacon_http_urls[0]:
         cmd.append("--beacon-rpc-provider=" + cl_context.beacon_grpc_url)
 
     if remote_signer_context == None:
@@ -82,7 +84,7 @@ def get_config(
     ]
 
     # Check if we're using a blobber by checking for port 5000
-    is_using_blobber = ":5000" in beacon_http_url
+    is_using_blobber = ":5000" in beacon_http_urls[0]
 
     if cl_context.client_name != constants.CL_TYPE.prysm or is_using_blobber:
         # Use Beacon API if:
@@ -124,6 +126,13 @@ def get_config(
         public_ports.update(
             shared_utils.get_port_specs(public_keymanager_port_assignment)
         )
+
+    # Add extra mounts - automatically handle file uploads
+    processed_mounts = shared_utils.process_extra_mounts(
+        plan, participant.vc_extra_mounts, extra_files_artifacts
+    )
+    for mount_path, artifact in processed_mounts.items():
+        files[mount_path] = artifact
 
     config_args = {
         "image": image,

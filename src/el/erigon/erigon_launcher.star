@@ -41,6 +41,8 @@ def launch(
     port_publisher,
     participant_index,
     network_params,
+    extra_files_artifacts,
+    bootnodoor_enode=None,
 ):
     cl_client_name = service_name.split("-")[3]
 
@@ -58,6 +60,8 @@ def launch(
         port_publisher,
         participant_index,
         network_params,
+        extra_files_artifacts,
+        bootnodoor_enode,
     )
 
     service = plan.add_service(service_name, config)
@@ -84,6 +88,8 @@ def get_config(
     port_publisher,
     participant_index,
     network_params,
+    extra_files_artifacts,
+    bootnodoor_enode=None,
 ):
     log_level = input_parser.get_client_log_level_or_default(
         participant.el_log_level, global_log_level, VERBOSITY_LEVELS
@@ -163,12 +169,15 @@ def get_config(
         "--torrent.port={0}".format(torrent_port),
     ]
 
+    # Configure storage type - erigon defaults to archive, use --prune.mode=full for full node
+    if participant.el_storage_type == "full":
+        cmd.append("--prune.mode=full")
+
     if network_params.gas_limit > 0:
         cmd.append("--miner.gaslimit={0}".format(network_params.gas_limit))
 
     if constants.NETWORK_NAME.shadowfork in network_params.network:  # shadowfork
-        if launcher.osaka_enabled:
-            cmd.append("--override.osaka=" + str(launcher.osaka_time))
+        cmd.append("--keep.stored.chain.config=true")
 
     files = {
         constants.GENESIS_DATA_MOUNTPOINT_ON_CLIENTS: launcher.el_cl_genesis_data.files_artifact_uuid,
@@ -197,7 +206,17 @@ def get_config(
             ],
         )
 
-    if (
+    # Add extra mounts - automatically handle file uploads
+    processed_mounts = shared_utils.process_extra_mounts(
+        plan, participant.el_extra_mounts, extra_files_artifacts
+    )
+    for mount_path, artifact in processed_mounts.items():
+        files[mount_path] = artifact
+
+    # Handle bootnode configuration with bootnodoor_enode override
+    if bootnodoor_enode != None:
+        cmd.append("--bootnodes=" + bootnodoor_enode)
+    elif (
         network_params.network == constants.NETWORK_NAME.kurtosis
         or constants.NETWORK_NAME.shadowfork in network_params.network
     ):
@@ -277,18 +296,18 @@ def get_el_context(
         plan, service_name, constants.WS_RPC_PORT_ID
     )
 
-    metrics_url = "{0}:{1}".format(service.ip_address, METRICS_PORT_NUM)
+    metrics_url = "{0}:{1}".format(service.name, METRICS_PORT_NUM)
     erigon_metrics_info = node_metrics.new_node_metrics_info(
         service_name, METRICS_PATH, metrics_url
     )
 
-    http_url = "http://{0}:{1}".format(service.ip_address, WS_RPC_PORT_NUM)
-    ws_url = "ws://{0}:{1}".format(service.ip_address, WS_RPC_PORT_NUM)
+    http_url = "http://{0}:{1}".format(service.name, WS_RPC_PORT_NUM)
+    ws_url = "ws://{0}:{1}".format(service.name, WS_RPC_PORT_NUM)
 
     return el_context.new_el_context(
         client_name="erigon",
         enode=enode,
-        ip_addr=service.ip_address,
+        ip_addr=service.name,
         rpc_port_num=WS_RPC_PORT_NUM,
         ws_port_num=WS_RPC_PORT_NUM,
         engine_rpc_port_num=ENGINE_RPC_PORT_NUM,
@@ -305,6 +324,4 @@ def new_erigon_launcher(el_cl_genesis_data, jwt_file, networkid):
         el_cl_genesis_data=el_cl_genesis_data,
         jwt_file=jwt_file,
         networkid=networkid,
-        osaka_time=el_cl_genesis_data.osaka_time,
-        osaka_enabled=el_cl_genesis_data.osaka_enabled,
     )

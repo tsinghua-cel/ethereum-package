@@ -32,7 +32,10 @@ def launch(
     port_publisher,
     index,
     global_node_selectors,
+    global_tolerations,
 ):
+    tolerations = shared_utils.get_tolerations(global_tolerations=global_tolerations)
+
     public_ports = shared_utils.get_mev_public_port(
         port_publisher,
         constants.HTTP_PORT_ID,
@@ -81,6 +84,7 @@ def launch(
         config_files_artifact_name,
         el_cl_genesis_data,
         global_node_selectors,
+        tolerations,
         public_ports,
         index,
     )
@@ -88,7 +92,7 @@ def launch(
     mev_boost_service = plan.add_service(service_name, config)
 
     return mev_boost_context_module.new_mev_boost_context(
-        mev_boost_service.ip_address, constants.MEV_BOOST_PORT
+        mev_boost_service.name, constants.MEV_BOOST_PORT
     )
 
 
@@ -99,6 +103,7 @@ def get_config(
     config_file,
     el_cl_genesis_data,
     node_selectors,
+    tolerations,
     public_ports,
     participant_index,
 ):
@@ -119,6 +124,7 @@ def get_config(
         min_memory=MIN_MEMORY,
         max_memory=MAX_MEMORY,
         node_selectors=node_selectors,
+        tolerations=tolerations,
         labels={constants.NODE_INDEX_LABEL_KEY: str(participant_index + 1)},
     )
 

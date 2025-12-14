@@ -16,11 +16,13 @@ VERBOSITY_LEVELS = {
 
 
 def get_config(
+    plan,
     participant,
     el_cl_genesis_data,
     image,
+    service_name,
     global_log_level,
-    beacon_http_url,
+    beacon_http_urls,
     cl_context,
     el_context,
     full_name,
@@ -31,6 +33,8 @@ def get_config(
     network_params,
     port_publisher,
     vc_index,
+    extra_files_artifacts,
+    tempo_otlp_grpc_url=None,
 ):
     log_level = input_parser.get_client_log_level_or_default(
         participant.vc_log_level, global_log_level, VERBOSITY_LEVELS
@@ -55,7 +59,7 @@ def get_config(
         "--secrets-dir=" + validator_secrets_dirpath,
         # The node won't have a slashing protection database and will fail to start otherwise
         "--init-slashing-protection",
-        "--beacon-nodes=" + beacon_http_url,
+        "--beacon-nodes=" + ",".join(beacon_http_urls),
         # "--enable-doppelganger-protection", // Disabled to not have to wait 2 epochs before validator can start
         # burn address - If unset, the validator will scream in its logs
         "--suggested-fee-recipient=" + constants.VALIDATING_REWARDS_ACCOUNT,
@@ -78,6 +82,11 @@ def get_config(
     if network_params.gas_limit > 0:
         cmd.append("--gas-limit={0}".format(network_params.gas_limit))
         cmd.append("--builder-proposals")
+
+    # Add tempo telemetry integration if tempo is enabled
+    if tempo_otlp_grpc_url != None:
+        cmd.append("--telemetry-collector-url={}".format(tempo_otlp_grpc_url))
+        cmd.append("--telemetry-service-name={}".format(service_name))
 
     if len(participant.vc_extra_params):
         cmd.extend([param for param in participant.vc_extra_params])
@@ -112,6 +121,13 @@ def get_config(
         public_ports.update(
             shared_utils.get_port_specs(public_keymanager_port_assignment)
         )
+
+    # Add extra mounts - automatically handle file uploads
+    processed_mounts = shared_utils.process_extra_mounts(
+        plan, participant.vc_extra_mounts, extra_files_artifacts
+    )
+    for mount_path, artifact in processed_mounts.items():
+        files[mount_path] = artifact
 
     config_args = {
         "image": image,

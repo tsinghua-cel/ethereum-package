@@ -1,5 +1,6 @@
 shared_utils = import_module("../shared_utils/shared_utils.star")
 constants = import_module("../package_io/constants.star")
+input_parser = import_module("../package_io/input_parser.star")
 SERVICE_NAME = "spamoor"
 
 HTTP_PORT_ID = "http"
@@ -28,18 +29,18 @@ def launch_spamoor(
     participant_configs,
     spamoor_params,
     global_node_selectors,
+    global_tolerations,
     network_params,
     port_publisher,
     additional_service_index,
     osaka_time,
 ):
+    tolerations = shared_utils.get_tolerations(global_tolerations=global_tolerations)
+
     spammers = []
 
     for index, spammer in enumerate(spamoor_params.spammers):
-        if (
-            "peerdas" in network_params.network
-            or network_params.fulu_fork_epoch != constants.FAR_FUTURE_EPOCH
-        ) and "blob" in spammer["scenario"]:
+        if (osaka_time != "") and "blob" in spammer["scenario"]:
             if "config" not in spammer:
                 spammer["config"] = {}
             spammer["config"]["fulu_activation"] = osaka_time
@@ -66,6 +67,7 @@ def launch_spamoor(
                         "max_pending": 200,
                         "max_wallets": 200,
                         "client_group": "mevbuilder",
+                        "deploy_client_group": "default",
                     },
                 }
             )
@@ -100,6 +102,7 @@ def launch_spamoor(
         prefunded_addresses,
         spamoor_params,
         global_node_selectors,
+        tolerations,
         network_params,
         port_publisher,
         additional_service_index,
@@ -113,6 +116,7 @@ def get_config(
     prefunded_addresses,
     spamoor_params,
     node_selectors,
+    tolerations,
     network_params,
     port_publisher,
     additional_service_index,
@@ -154,6 +158,7 @@ def get_config(
         min_memory=spamoor_params.min_mem,
         max_memory=spamoor_params.max_mem,
         node_selectors=node_selectors,
+        tolerations=tolerations,
         files={
             SPAMOOR_CONFIG_MOUNT_DIRPATH_ON_SERVICE: config_files_artifact_name,
         },

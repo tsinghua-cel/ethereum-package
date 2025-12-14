@@ -27,11 +27,15 @@ def launch(
     global_node_selectors,
     global_tolerations,
     persistent,
+    tempo_otlp_grpc_url,
     num_participants,
     validator_data,
     prysm_password_relative_filepath,
     prysm_password_artifact_uuid,
     global_other_index,
+    extra_files_artifacts,
+    backend,
+    bootnodoor_enr=None,
 ):
     plan.print("Launching CL network")
 
@@ -97,6 +101,16 @@ def launch(
     all_snooper_el_engine_contexts = []
     all_cl_contexts = []
     blobber_configs_with_contexts = []
+
+    # Generic bootnode ENR override - can be set from bootnodoor or any other bootnode service
+    bootnode_enr_override = bootnodoor_enr
+    if bootnode_enr_override != None:
+        plan.print(
+            "Using bootnode ENR override for all CL clients: {0}".format(
+                bootnode_enr_override
+            )
+        )
+
     preregistered_validator_keys_for_nodes = (
         validator_data.per_node_keystores
         if network_params.network == constants.NETWORK_NAME.kurtosis
@@ -115,8 +129,10 @@ def launch(
             global_node_selectors,
         )
 
-        tolerations = input_parser.get_client_tolerations(
-            participant.cl_tolerations, participant.tolerations, global_tolerations
+        tolerations = shared_utils.get_tolerations(
+            specific_container_tolerations=participant.cl_tolerations,
+            participant_tolerations=participant.tolerations,
+            global_tolerations=global_tolerations,
         )
 
         if cl_type not in cl_launchers:
@@ -164,6 +180,7 @@ def launch(
                 snooper_service_name,
                 el_context,
                 node_selectors,
+                global_tolerations,
                 args_with_right_defaults.port_publisher,
                 global_other_index,
                 args_with_right_defaults.docker_cache_params,
@@ -175,9 +192,20 @@ def launch(
                 )
             )
         checkpoint_sync_url = args_with_right_defaults.checkpoint_sync_url
-        if args_with_right_defaults.checkpoint_sync_enabled:
+        # Use participant-level checkpoint_sync_enabled if set, otherwise use global
+        checkpoint_sync_enabled = args_with_right_defaults.checkpoint_sync_enabled
+        if participant.checkpoint_sync_enabled != None:
+            checkpoint_sync_enabled = participant.checkpoint_sync_enabled
+        if checkpoint_sync_enabled:
             if args_with_right_defaults.checkpoint_sync_url == "":
-                if (
+                if network_params.network == constants.NETWORK_NAME.kurtosis:
+                    if "checkpointz" in args_with_right_defaults.additional_services:
+                        checkpoint_sync_url = "http://checkpointz:5555"
+                    else:
+                        fail(
+                            "Checkpoint sync URL is required if you enabled checkpoint_sync for kurtosis network. Please enable checkpointz additional service."
+                        )
+                elif (
                     network_params.network in constants.PUBLIC_NETWORKS
                     or network_params.network == constants.NETWORK_NAME.ephemery
                 ):
@@ -212,11 +240,15 @@ def launch(
                 persistent,
                 tolerations,
                 node_selectors,
-                args_with_right_defaults.checkpoint_sync_enabled,
+                checkpoint_sync_enabled,
                 checkpoint_sync_url,
                 args_with_right_defaults.port_publisher,
                 index,
                 network_params,
+                extra_files_artifacts,
+                backend,
+                tempo_otlp_grpc_url,
+                bootnode_enr_override,
             )
 
             blobber_config = get_blobber_config(
@@ -259,11 +291,15 @@ def launch(
                 persistent,
                 tolerations,
                 node_selectors,
-                args_with_right_defaults.checkpoint_sync_enabled,
+                checkpoint_sync_enabled,
                 checkpoint_sync_url,
                 args_with_right_defaults.port_publisher,
                 index,
                 network_params,
+                extra_files_artifacts,
+                backend,
+                tempo_otlp_grpc_url,
+                bootnode_enr_override,
             )
 
             cl_participant_info[cl_service_name] = {
@@ -273,6 +309,7 @@ def launch(
                 "node_selectors": node_selectors,
                 "get_cl_context": get_cl_context,
                 "get_blobber_config": get_blobber_config,
+                "participant_index": index,
             }
 
     # add rest of cl's in parallel to speed package execution
@@ -280,11 +317,15 @@ def launch(
     if len(cl_service_configs) > 0:
         cl_services = plan.add_services(cl_service_configs)
 
+    # Create CL contexts ordered by participant index
+    cl_contexts_temp = {}
+    blobber_configs_temp = {}
     for beacon_service_name, beacon_service in cl_services.items():
         info = cl_participant_info[beacon_service_name]
         get_cl_context = info["get_cl_context"]
         get_blobber_config = info["get_blobber_config"]
         participant = info["participant"]
+        participant_index = info["participant_index"]
 
         cl_context = get_cl_context(
             plan,
@@ -305,12 +346,10 @@ def launch(
             info["node_selectors"],
         )
         if blobber_config != None:
-            blobber_configs_with_contexts.append(
-                struct(
-                    cl_context=cl_context,
-                    blobber_config=blobber_config,
-                    participant=participant,
-                )
+            blobber_configs_temp[participant_index] = struct(
+                cl_context=cl_context,
+                blobber_config=blobber_config,
+                participant=participant,
             )
 
         # Add participant cl additional prometheus labels
@@ -318,7 +357,14 @@ def launch(
             if metrics_info != None:
                 metrics_info["config"] = participant.prometheus_config
 
-        all_cl_contexts.append(cl_context)
+        cl_contexts_temp[participant_index] = cl_context
+
+    # Add remaining CL contexts in participant order (skipping index 0 which was added earlier)
+    for i in range(1, len(args_with_right_defaults.participants)):
+        if i in cl_contexts_temp:
+            all_cl_contexts.append(cl_contexts_temp[i])
+            if i in blobber_configs_temp:
+                blobber_configs_with_contexts.append(blobber_configs_temp[i])
 
     return (
         all_cl_contexts,
