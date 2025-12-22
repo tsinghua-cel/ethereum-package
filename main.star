@@ -900,7 +900,12 @@ def run(plan, args={}):
                 args_with_right_defaults.participants,
                 network_params,
                 bunnyfinder_params,
+                persistent,
                 global_node_selectors,
+                global_tolerations,
+                args_with_right_defaults.port_publisher,
+                index,
+                args_with_right_defaults.docker_cache_params,
             )
             plan.print("Successfully launched assertoor")
         else:

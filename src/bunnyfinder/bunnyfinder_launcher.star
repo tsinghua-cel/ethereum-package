@@ -1,5 +1,6 @@
 shared_utils = import_module("../shared_utils/shared_utils.star")
 static_files = import_module("../static_files/static_files.star")
+postgres = import_module("github.com/kurtosis-tech/postgres-package/main.star")
 constants = import_module("../package_io/constants.star")
 SERVICE_NAME = "bunnyfinder"
 
@@ -9,6 +10,12 @@ RPC_PORT_NUMBER = 19000
 
 HTTP_PORT_ID = "http"
 HTTP_PORT_NUMBER = 19100
+
+# The min/max CPU/memory that postgres can use
+POSTGRES_MIN_CPU = 10
+POSTGRES_MAX_CPU = 1000
+POSTGRES_MIN_MEMORY = 32
+POSTGRES_MAX_MEMORY = 1024
 
 
 BUNNYFINDER_CONFIG_FILENAME = "bunnyfinder-config.yaml"
@@ -42,13 +49,35 @@ def launch_bunnyfinder(
     participant_configs,
     network_params,
     bunnyfinder_params,
+    persistent,
     global_node_selectors,
+    global_tolerations,
+    port_publisher,
+    additional_service_index,
+    docker_cache_params,
 ):
+    node_selectors = global_node_selectors
+    tolerations = shared_utils.get_tolerations(global_tolerations=global_tolerations)
+
+    postgres_output = postgres.run(
+        plan,
+        service_name="blobscan-postgres",
+        min_cpu=POSTGRES_MIN_CPU,
+        max_cpu=POSTGRES_MAX_CPU,
+        min_memory=POSTGRES_MIN_MEMORY,
+        max_memory=POSTGRES_MAX_MEMORY,
+        persistent=persistent,
+        node_selectors=node_selectors,
+        image=shared_utils.docker_cache_image_calc(
+            docker_cache_params, "library/postgres:alpine"
+        ),
+        tolerations=tolerations,
+    )
+
     # check bunnyfinder_params.dbconnect is set an valid value
     if bunnyfinder_params.dbconnect == "":
-        fail(
-            "dbconnect is required in bunnyfinder_params"
-        )
+        bunnyfinder_params.dbconnect = postgres_output.url
+
     honest_cl_http_url = ""
     if len(participant_contexts) >= 2:
         participant = participant_contexts[1]
