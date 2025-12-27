@@ -104,8 +104,8 @@ def launch_bunnyfinder(
         honest_cl_http_url = cl_client.beacon_http_url
 
     plan.print(
-        "Launching bunnyfinder with CL HTTP URL: {0}, Honest CL HTTP URL: {1}, EL HTTP URL: {2}".format(
-            cl_client.beacon_http_url, honest_cl_http_url, el_http_url
+        "Launching bunnyfinder with CL HTTP URL: {0}, Honest CL HTTP URL: {1}, EL HTTP URL: {2}, dbconnect: {3}".format(
+            cl_client.beacon_http_url, honest_cl_http_url, el_http_url, postgres_output.url
         )
     )
 
