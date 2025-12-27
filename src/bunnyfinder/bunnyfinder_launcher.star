@@ -73,6 +73,11 @@ def launch_bunnyfinder(
         ),
         tolerations=tolerations,
     )
+    plan.print(
+        "Launching bunnyfinder with postgres_output.url: {0}".format(
+            postgres_output.url
+        )
+    )
 
     # check bunnyfinder_params.dbconnect is set an valid value
     if bunnyfinder_params.dbconnect == "":
