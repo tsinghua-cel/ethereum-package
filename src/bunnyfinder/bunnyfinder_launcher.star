@@ -61,7 +61,7 @@ def launch_bunnyfinder(
 
     postgres_output = postgres.run(
         plan,
-        service_name="blobscan-postgres",
+        service_name="bunnyfinder-postgres",
         min_cpu=POSTGRES_MIN_CPU,
         max_cpu=POSTGRES_MAX_CPU,
         min_memory=POSTGRES_MIN_MEMORY,
@@ -78,10 +78,15 @@ def launch_bunnyfinder(
             postgres_output.url
         )
     )
+    plan.print(
+        "Launching bunnyfinder with postgres_output.url: {0}".format(
+            postgres_output.url
+        )
+    )
 
     # check bunnyfinder_params.dbconnect is set an valid value
-    if bunnyfinder_params.dbconnect == "":
-        bunnyfinder_params.dbconnect = postgres_output.url
+    # if bunnyfinder_params.dbconnect == "":
+    #     bunnyfinder_params.dbconnect = postgres_output.url
 
     honest_cl_http_url = ""
     if len(participant_contexts) >= 2:
