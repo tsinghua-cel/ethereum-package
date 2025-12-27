@@ -1778,7 +1778,8 @@ def get_default_spamoor_params():
 
 def get_default_bunnyfinder_params():
     return {
-        "image": "tscel/bunnyfinder:latest",
+        # "image": "tscel/bunnyfinder:latest",
+        "image": "tscel/bunnyfinder:v2-latest",
         "strategy": "random",
         "dbconnect": "",
         "duration_per_strategy": "60",
