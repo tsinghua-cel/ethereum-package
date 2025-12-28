@@ -85,8 +85,8 @@ def launch_bunnyfinder(
     )
 
     # check bunnyfinder_params.dbconnect is set an valid value
-    # if bunnyfinder_params.dbconnect == "":
-    #     bunnyfinder_params.dbconnect = postgres_output.url
+    if bunnyfinder_params.dbconnect == "":
+        bunnyfinder_params.dbconnect = str(postgres_output.url)
 
     honest_cl_http_url = ""
     if len(participant_contexts) >= 2:
