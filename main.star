@@ -907,7 +907,7 @@ def run(plan, args={}):
                 index,
                 args_with_right_defaults.docker_cache_params,
             )
-            plan.print("Successfully launched assertoor")
+            plan.print("Successfully launched bunnyfinder")
         else:
             fail("Invalid additional service %s" % (additional_service))
     if launch_prometheus_grafana:

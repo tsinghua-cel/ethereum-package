@@ -83,10 +83,9 @@ def launch_bunnyfinder(
             postgres_output.url
         )
     )
-
-    # check bunnyfinder_params.dbconnect is set an valid value
-    if bunnyfinder_params.dbconnect == "":
-        bunnyfinder_params.dbconnect = str(postgres_output.url)
+    dbconnect = postgres_output.url
+    if bunnyfinder_params.dbconnect != "":
+        dbconnect = bunnyfinder_params.dbconnect
 
     honest_cl_http_url = ""
     if len(participant_contexts) >= 2:
@@ -115,7 +114,7 @@ def launch_bunnyfinder(
 
     plan.print(
         "Launching bunnyfinder with CL HTTP URL: {0}, Honest CL HTTP URL: {1}, EL HTTP URL: {2}, dbconnect: {3}".format(
-            cl_client.beacon_http_url, honest_cl_http_url, el_http_url, postgres_output.url
+            cl_client.beacon_http_url, honest_cl_http_url, el_http_url, dbconnect
         )
     )
 
@@ -125,7 +124,7 @@ def launch_bunnyfinder(
         cl_client.beacon_http_url,
         honest_cl_http_url,
         el_http_url,
-        bunnyfinder_params,
+        dbconnect
     )
 
     template_and_data = shared_utils.new_template_and_data(
@@ -196,10 +195,10 @@ def new_config_template_data(
     beacon_http_url,
     honest_beacon_http_url,
     execution_http_url,
-    bunnyfinder_params,
+    dbconnect
 ):
     return {
-        "DBConnect": bunnyfinder_params.dbconnect,
+        "DBConnect": dbconnect,
         "ListenRPCPortNum": listen_rpc_port_num,
         "ListenPortNum": listen_port_num,
         "CL_HTTP_URL": beacon_http_url,
